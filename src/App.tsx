@@ -87,7 +87,7 @@ function App() {
               <span className="pulse-ring absolute top-0 right-0 h-3 w-3"></span>
               <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-primary-500"></span>
             </div>
-            <h1 className="text-2xl font-bold gradient-text">MediMinder</h1>
+            <h1 className="text-2xl font-bold gradient-text">CYY</h1>
           </motion.div>
           
           <motion.div

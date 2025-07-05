@@ -36,8 +36,6 @@ export const showNotification = (title: string, options?: NotificationOptions) =
 };
 
 export const playSound = (type: 'gentle' | 'urgent' | 'success' = 'gentle') => {
-  const audio = new Audio();
-  
   // Using Web Audio API to generate sounds
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
   const oscillator = audioContext.createOscillator();

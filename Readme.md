@@ -1,8 +1,8 @@
-# 💊 MediMinder - Medication Reminder App
+# 💊 CYY - Medication Reminder App
 
 A beautiful, modern Progressive Web App (PWA) to help you remember to take your medications on time.
 
-![MediMinder](https://img.shields.io/badge/MediMinder-v1.0.0-e236ff?style=for-the-badge&logo=react&logoColor=white)
+![CYY](https://img.shields.io/badge/CYY-v1.0.0-e236ff?style=for-the-badge&logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
@@ -37,7 +37,7 @@ cd medication-reminder
 npm install
 ```
 
-3. Start the development server:
+3. Start the development server
 ```bash
 npm start
 ```
@@ -97,7 +97,7 @@ The optimized production build will be in the `build` folder.
 
 ## 🔐 Privacy
 
-MediMinder is designed with privacy in mind:
+CYY is designed with privacy in mind:
 - All data is stored locally using IndexedDB
 - No servers or external APIs
 - No tracking or analytics

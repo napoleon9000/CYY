@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaBell, FaVolumeUp, FaMoon, FaSun, FaTrash, FaInfo, FaHeart, FaShieldAlt } from 'react-icons/fa';
+import { FaBell, FaVolumeUp, FaMoon, FaSun, FaTrash, FaHeart, FaShieldAlt } from 'react-icons/fa';
 import { requestNotificationPermission, playSound, vibrate } from '../utils/notifications';
 import { db } from '../db/database';
 
@@ -186,7 +186,7 @@ const Settings: React.FC = () => {
         className="glass-morphism rounded-3xl p-6 text-center"
       >
         <FaHeart className="text-3xl text-pink-500 mx-auto mb-3 animate-pulse-slow" />
-        <h3 className="font-bold text-gray-800 mb-2">MediMinder</h3>
+        <h3 className="font-bold text-gray-800 mb-2">CYY</h3>
         <p className="text-sm text-gray-600 mb-1">Version 1.0.0</p>
         <p className="text-xs text-gray-500">Made with love for your health</p>
       </motion.div>
