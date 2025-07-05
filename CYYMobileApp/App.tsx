@@ -1,10 +1,8 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import Icon from 'react-native-vector-icons/MaterialIcons';
 import { StatusBar } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -12,87 +10,62 @@ import AddMedicationScreen from './src/screens/AddMedicationScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
+// Constants
+import { TAB_COLORS } from './src/constants/colors';
+
 // Types
 import { BottomTabParamList, RootStackParamList } from './src/types';
 
-const Tab = createBottomTabNavigator<BottomTabParamList>();
+const Tab = createNativeBottomTabNavigator<BottomTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const TabNavigator = () => {
-  const insets = useSafeAreaInsets();
-  
   return (
     <Tab.Navigator
-      screenOptions={({ route }: any) => ({
+      screenOptions={({ route }: { route: any }) => ({
         headerShown: false,
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => {
-          let iconName: string;
-
+        tabBarInactiveTintColor: TAB_COLORS.INACTIVE,
+        tabBarActiveTintColor: (() => {
           switch (route.name) {
-            case 'Home':
-              iconName = 'home';
-              break;
-            case 'Add':
-              iconName = 'add-circle';
-              break;
-            case 'History':
-              iconName = 'history';
-              break;
-            case 'Settings':
-              iconName = 'settings';
-              break;
-            default:
-              iconName = 'home';
+            case 'Home': return TAB_COLORS.HOME;
+            case 'Add': return TAB_COLORS.ADD;
+            case 'History': return TAB_COLORS.HISTORY;
+            case 'Settings': return TAB_COLORS.SETTINGS;
+            default: return TAB_COLORS.ACTIVE;
           }
-
-          return <Icon name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: '#6C5CE7',
-        tabBarInactiveTintColor: '#BDBDBD',
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 0,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          height: 60 + insets.bottom,
-          paddingBottom: insets.bottom + 8,
-          paddingTop: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
+        })(),
       })}
     >
       <Tab.Screen 
         name="Home" 
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Home',
+          title: 'Home',
+          tabBarIcon: () => ({ sfSymbol: 'house' }),
         }}
       />
       <Tab.Screen 
         name="Add" 
         component={AddMedicationScreen}
         options={{
-          tabBarLabel: 'Add',
+          title: 'Add',
+          tabBarIcon: () => ({ sfSymbol: 'plus.circle' }),
         }}
       />
       <Tab.Screen 
         name="History" 
         component={HistoryScreen}
         options={{
-          tabBarLabel: 'History',
+          title: 'History',
+          tabBarIcon: () => ({ sfSymbol: 'clock' }),
         }}
       />
       <Tab.Screen 
         name="Settings" 
         component={SettingsScreen}
         options={{
-          tabBarLabel: 'Settings',
+          title: 'Settings',
+          tabBarIcon: () => ({ sfSymbol: 'gear' }),
         }}
       />
     </Tab.Navigator>
@@ -102,7 +75,7 @@ const TabNavigator = () => {
 const App = () => {
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#6C5CE7" />
+      <StatusBar barStyle="light-content" backgroundColor={TAB_COLORS.ADD} />
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="MainTabs" component={TabNavigator} />

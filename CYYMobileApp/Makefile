@@ -14,6 +14,7 @@ help:
 	@echo ""
 	@echo "Development Commands (Simulator-focused):"
 	@echo "  make ios              Run on iOS simulator (Debug mode)"
+	@echo "  make ios-fast         Run on iOS simulator (Skip clean build)"
 	@echo "  make iphone           Run on connected iPhone device"
 	@echo "  make ios-release      Run on iOS simulator (Release mode)"
 	@echo "  make ios-simulator    Choose specific iOS simulator"
@@ -33,6 +34,7 @@ help:
 	@echo "  make log-android      Show Android device logs"
 	@echo "  make clear-cache      Clear all caches and restart Metro"
 	@echo "  make debug-info       Show debugging information and URLs"
+	@echo "  make build-optimize   Optimize iOS build performance"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  make build-ios        Build iOS app for release"
@@ -91,11 +93,16 @@ kill-metro:
 # iOS Commands (Simulator-focused for debugging)
 ios:
 	@echo "🍎 Running on iOS simulator (Debug mode)..."
-	npx react-native run-ios
+	npx react-native run-ios --simulator="iPhone 16 Pro"
 
 ios-release:
 	@echo "🍎 Running on iOS simulator (Release mode)..."
-	npx react-native run-ios --mode Release
+	npx react-native run-ios --simulator="iPhone 16 Pro" --mode Release
+
+ios-fast:
+	@echo "🍎 Running on iOS simulator (Fast incremental build)..."
+	@echo "Note: This assumes Metro is already running and previous build exists"
+	npx react-native run-ios --simulator="iPhone 16 Pro" --no-packager
 
 iphone:
 	@echo "🍎 Running on connected iPhone device..."
@@ -272,6 +279,17 @@ simulator-list:
 emulator-list:
 	@echo "📱 Available Android emulators:"
 	emulator -list-avds
+
+# Build Optimization
+build-optimize:
+	@echo "🚀 Optimizing iOS build performance..."
+	@echo "1. Enabling Xcode build optimization..."
+	@defaults write com.apple.dt.Xcode ShowBuildOperationDuration -bool YES
+	@echo "2. Setting parallel build threads..."
+	@defaults write com.apple.dt.Xcode IDEBuildOperationMaxNumberOfConcurrentCompileTasks 8
+	@echo "3. Enabling aggressive optimization..."
+	@defaults write com.apple.dt.Xcode IDEBuildOperationMaxNumberOfConcurrentCompileTasks `sysctl -n hw.ncpu`
+	@echo "✅ Build optimization complete. Restart Xcode if it's open."
 
 # Setup verification
 check-env:

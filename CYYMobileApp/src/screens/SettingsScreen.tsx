@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Database } from '../utils/database';
 import { flipperLog } from '../utils/flipper';
 import DebugInfo from '../components/DebugInfo';
+import CollapsibleHeader from '../components/CollapsibleHeader';
+import { GRADIENTS } from '../constants/colors';
 import { AppSettings } from '../types';
 
 const SettingsScreen: React.FC = () => {
@@ -18,6 +20,9 @@ const SettingsScreen: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+  
+  // Animated values for collapsible header
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     flipperLog.navigation('SCREEN_LOAD', 'SettingsScreen');
@@ -136,8 +141,10 @@ const SettingsScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['#FF9800', '#FF5722']}
-          style={styles.header}
+          colors={GRADIENTS.SETTINGS}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={styles.loadingHeader}
         >
           <Text style={styles.headerTitle}>Settings</Text>
           <Text style={styles.headerSubtitle}>Customize your experience</Text>
@@ -151,15 +158,20 @@ const SettingsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#FF9800', '#FF5722']}
-        style={styles.header}
-      >
+      <CollapsibleHeader colors={GRADIENTS.SETTINGS} scrollY={scrollY}>
         <Text style={styles.headerTitle}>Settings</Text>
         <Text style={styles.headerSubtitle}>Customize your experience</Text>
-      </LinearGradient>
+      </CollapsibleHeader>
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
         {settingsGroups.map((group, groupIndex) => (
           <View key={group.title} style={styles.settingsGroup}>
             <View style={styles.groupHeader}>
@@ -291,7 +303,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
   },
-  header: {
+  loadingHeader: {
     paddingTop: 60,
     paddingBottom: 30,
     paddingHorizontal: 20,
@@ -310,7 +322,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 140, // Account for collapsible header
   },
   loadingContainer: {
     flex: 1,

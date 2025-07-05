@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Platform, Linking, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import DatePicker from 'react-native-date-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { Database, MEDICATION_COLORS } from '../utils/database';
 import { requestNotificationPermission, scheduleWeeklyReminders } from '../utils/notifications';
+import { flipperLog } from '../utils/flipper';
+import { GRADIENTS } from '../constants/colors';
+import CollapsibleHeader from '../components/CollapsibleHeader';
 import { Medication } from '../types';
 
 const AddMedicationScreen: React.FC = () => {
@@ -23,6 +26,9 @@ const AddMedicationScreen: React.FC = () => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedTime, setSelectedTime] = useState(new Date());
   const [loading, setLoading] = useState(false);
+  
+  // Animated values for collapsible header
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const days = [
     { id: 0, name: 'Sun', full: 'Sunday' },
@@ -78,6 +84,7 @@ const AddMedicationScreen: React.FC = () => {
     const hours = time.getHours().toString().padStart(2, '0');
     const minutes = time.getMinutes().toString().padStart(2, '0');
     setFormData(prev => ({ ...prev, reminderTime: `${hours}:${minutes}` }));
+    setSelectedTime(time); // Update the selected time state
     setShowTimePicker(false);
   };
 
@@ -132,13 +139,37 @@ const AddMedicationScreen: React.FC = () => {
       await Database.saveMedication(newMedication);
       
       // Request notification permission and schedule reminders
+      flipperLog.info('Requesting notification permission for new medication', { 
+        medicationName: newMedication.name 
+      });
+      
       const hasPermission = await requestNotificationPermission();
+      flipperLog.info('Permission result', { hasPermission });
+      
       if (hasPermission) {
+        flipperLog.info('Scheduling reminders for medication', { 
+          medicationId: newMedication.id,
+          reminderDays: newMedication.reminderDays,
+          reminderTime: newMedication.reminderTime
+        });
         scheduleWeeklyReminders(newMedication);
       } else {
+        flipperLog.warn('Notification permission denied, showing alert');
         Alert.alert(
           'Notification Permission',
-          'Notifications are disabled. You can enable them in Settings to receive medication reminders.'
+          'Notifications are disabled. You can enable them in Settings to receive medication reminders.',
+          [
+            { text: 'OK' },
+            { 
+              text: 'Open Settings', 
+              onPress: () => {
+                // On iOS, this will open the app's notification settings
+                if (Platform.OS === 'ios') {
+                  Linking.openURL('app-settings:');
+                }
+              }
+            }
+          ]
         );
       }
       
@@ -155,10 +186,7 @@ const AddMedicationScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#6C5CE7', '#A29BFE']}
-        style={styles.header}
-      >
+      <CollapsibleHeader colors={GRADIENTS.ADD} scrollY={scrollY}>
         <View style={styles.headerContent}>
           <TouchableOpacity 
             onPress={() => navigation.goBack()}
@@ -172,9 +200,18 @@ const AddMedicationScreen: React.FC = () => {
           </View>
           <View style={styles.headerSpacer} />
         </View>
-      </LinearGradient>
+      </CollapsibleHeader>
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
         {/* Medication Name */}
         <View style={styles.inputSection}>
           <Text style={styles.label}>Medication Name *</Text>
@@ -335,7 +372,9 @@ const AddMedicationScreen: React.FC = () => {
           disabled={loading}
         >
           <LinearGradient
-            colors={['#6C5CE7', '#A29BFE']}
+            colors={GRADIENTS.ADD}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 0}}
             style={styles.submitGradient}
           >
             <Icon name="save" size={24} color="white" />
@@ -364,11 +403,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
   },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-  },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -396,8 +430,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 160, // Account for collapsible header + extra space
+    paddingBottom: 100, // Extra space for bottom tab bar
   },
   inputSection: {
     marginBottom: 24,

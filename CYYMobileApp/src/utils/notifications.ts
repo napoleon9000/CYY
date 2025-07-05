@@ -1,6 +1,7 @@
 import PushNotification from 'react-native-push-notification';
 import { Platform, PermissionsAndroid } from 'react-native';
 import { Medication } from '../types';
+import { flipperLog } from './flipper';
 
 // Configure notifications
 PushNotification.configure({
@@ -46,11 +47,54 @@ PushNotification.createChannel(
   (created) => console.log(`Channel created: ${created}`)
 );
 
+export const checkNotificationPermission = async (): Promise<boolean> => {
+  flipperLog.notification('CHECKING_PERMISSION', { platform: Platform.OS });
+  
+  if (Platform.OS === 'ios') {
+    return new Promise((resolve) => {
+      PushNotification.checkPermissions((permissions) => {
+        flipperLog.notification('iOS_PERMISSION_CHECK', permissions);
+        console.log('Current iOS permissions:', permissions);
+        resolve(permissions.alert || false);
+      });
+    });
+  } else {
+    try {
+      const granted = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+      flipperLog.notification('ANDROID_PERMISSION_CHECK', { granted });
+      console.log('Current Android permission:', granted);
+      return granted;
+    } catch (err) {
+      flipperLog.error('Android permission check failed', err);
+      console.warn('Error checking Android permissions:', err);
+      return false;
+    }
+  }
+};
+
 export const requestNotificationPermission = async (): Promise<boolean> => {
+  flipperLog.notification('REQUESTING_PERMISSION', { platform: Platform.OS });
+  
+  // First check if we already have permission
+  const hasPermission = await checkNotificationPermission();
+  if (hasPermission) {
+    flipperLog.notification('PERMISSION_ALREADY_GRANTED');
+    console.log('Notification permission already granted');
+    return true;
+  }
+
   if (Platform.OS === 'ios') {
     return new Promise((resolve) => {
       PushNotification.requestPermissions().then((permissions) => {
+        flipperLog.notification('iOS_PERMISSION_REQUEST_RESULT', permissions);
+        console.log('iOS permission request result:', permissions);
         resolve(permissions.alert || false);
+      }).catch((error) => {
+        flipperLog.error('iOS permission request failed', error);
+        console.error('iOS permission request error:', error);
+        resolve(false);
       });
     });
   } else {
@@ -65,9 +109,12 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
           buttonPositive: 'OK',
         }
       );
+      flipperLog.notification('ANDROID_PERMISSION_REQUEST_RESULT', { granted });
+      console.log('Android permission request result:', granted);
       return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
-      console.warn(err);
+      flipperLog.error('Android permission request failed', err);
+      console.error('Android permission request error:', err);
       return false;
     }
   }

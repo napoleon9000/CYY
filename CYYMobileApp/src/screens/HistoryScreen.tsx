@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Database } from '../utils/database';
+import { GRADIENTS } from '../constants/colors';
+import CollapsibleHeader from '../components/CollapsibleHeader';
 import { Medication, MedicationLog } from '../types';
 
 interface GroupedLogs {
@@ -21,6 +23,9 @@ const HistoryScreen: React.FC = () => {
     complianceRate: 0,
     currentStreak: 0,
   });
+  
+  // Animated values for collapsible header
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadData();
@@ -156,8 +161,10 @@ const HistoryScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['#4CAF50', '#8BC34A']}
-          style={styles.header}
+          colors={GRADIENTS.HISTORY}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={styles.loadingHeader}
         >
           <Text style={styles.headerTitle}>History</Text>
           <Text style={styles.headerSubtitle}>Track your progress</Text>
@@ -171,13 +178,10 @@ const HistoryScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#4CAF50', '#8BC34A']}
-        style={styles.header}
-      >
+      <CollapsibleHeader colors={GRADIENTS.HISTORY} scrollY={scrollY}>
         <Text style={styles.headerTitle}>History</Text>
         <Text style={styles.headerSubtitle}>Track your progress</Text>
-      </LinearGradient>
+      </CollapsibleHeader>
       
       <ScrollView 
         style={styles.content}
@@ -185,6 +189,11 @@ const HistoryScreen: React.FC = () => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
       >
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
@@ -286,7 +295,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
   },
-  header: {
+  loadingHeader: {
     paddingTop: 60,
     paddingBottom: 30,
     paddingHorizontal: 20,
@@ -305,6 +314,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 140, // Account for collapsible header
   },
   loadingContainer: {
     flex: 1,

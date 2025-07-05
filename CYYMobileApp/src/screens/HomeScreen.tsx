@@ -1,31 +1,66 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import { Database } from '../utils/database';
 import { scheduleWeeklyReminders } from '../utils/notifications';
 import { flipperLog } from '../utils/flipper';
+import { GRADIENTS } from '../constants/colors';
+import CollapsibleHeader from '../components/CollapsibleHeader';
 import { Medication } from '../types';
 
 const HomeScreen: React.FC = () => {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Animated values for collapsible header
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 120],
+    outputRange: [120, 60],
+    extrapolate: 'clamp',
+  });
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 60, 120],
+    outputRange: [1, 0.7, 0.3],
+    extrapolate: 'clamp',
+  });
+  const titleScale = scrollY.interpolate({
+    inputRange: [0, 120],
+    outputRange: [1, 0.8],
+    extrapolate: 'clamp',
+  });
 
-  useEffect(() => {
-    flipperLog.navigation('SCREEN_LOAD', 'HomeScreen');
-    loadMedications();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      flipperLog.navigation('SCREEN_FOCUS', 'HomeScreen');
+      loadMedications();
+    }, [])
+  );
 
-  const loadMedications = async () => {
+  const loadMedications = async (isRefreshing = false) => {
     try {
+      flipperLog.database('LOAD', 'medications', { isRefreshing });
       const meds = await Database.getMedications();
       setMedications(meds);
+      flipperLog.info('Medications loaded', { count: meds.length });
     } catch (error) {
+      flipperLog.error('Error loading medications', error);
       console.error('Error loading medications:', error);
     } finally {
       setLoading(false);
+      if (isRefreshing) {
+        setRefreshing(false);
+      }
     }
   };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    loadMedications(true);
+  }, []);
 
   const toggleMedication = async (id: string, isActive: boolean) => {
     flipperLog.info('Toggle medication', { id, currentState: isActive, newState: !isActive });
@@ -91,8 +126,10 @@ const HomeScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
-          style={styles.header}
+          colors={GRADIENTS.HOME}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={styles.loadingHeader}
         >
           <Text style={styles.headerTitle}>CYY</Text>
           <Text style={styles.headerSubtitle}>💊 Medication Reminder</Text>
@@ -106,10 +143,7 @@ const HomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.header}
-      >
+      <CollapsibleHeader colors={GRADIENTS.HOME} scrollY={scrollY}>
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerTitle}>CYY</Text>
@@ -119,9 +153,20 @@ const HomeScreen: React.FC = () => {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
         </View>
-      </LinearGradient>
+      </CollapsibleHeader>
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
         {medications.length === 0 ? (
           <View style={styles.emptyState}>
             <Icon name="local-pharmacy" size={80} color="#E0E0E0" />
@@ -173,7 +218,7 @@ const HomeScreen: React.FC = () => {
                   
                   <View style={styles.notificationSection}>
                     <Icon name="notifications" size={16} color="#666" />
-                    <Text style={styles.notificationText}>{medication.notificationType}</Text>
+                    <Text style={styles.notificationText}>{medication.notificationTypes?.join(', ') || 'notification'}</Text>
                   </View>
                 </View>
                 
@@ -209,11 +254,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
   },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-  },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -236,7 +276,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    paddingTop: 140, // Account for header height
     paddingHorizontal: 20,
+  },
+  loadingHeader: {
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    alignItems: 'center',
   },
   loadingContainer: {
     flex: 1,
