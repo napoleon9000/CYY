@@ -35,6 +35,7 @@ help:
 	@echo "  make clear-cache      Clear all caches and restart Metro"
 	@echo "  make debug-info       Show debugging information and URLs"
 	@echo "  make build-optimize   Optimize iOS build performance"
+	@echo "  make update-icons     Optimize and update app icons"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  make build-ios        Build iOS app for release"
@@ -307,6 +308,31 @@ check-env:
 	else \
 		echo "Android SDK: ANDROID_HOME not set"; \
 	fi
+
+# Icon Management
+update-icons:
+	@echo "🎨 Optimizing app icons..."
+	@if ! command -v magick &> /dev/null; then \
+		echo "Installing ImageMagick..."; \
+		brew install imagemagick; \
+	fi
+	@mkdir -p temp_icons
+	@echo "Creating optimized icons..."
+	@magick assets/icons/icon-1024.png -crop 600x600+212+212 +repage -resize 1024x1024 temp_icons/icon-1024.png
+	@cd temp_icons && \
+	magick icon-1024.png -resize 180x180 icon-180.png && \
+	magick icon-1024.png -resize 120x120 icon-120.png && \
+	magick icon-1024.png -resize 87x87 icon-87.png && \
+	magick icon-1024.png -resize 80x80 icon-80.png && \
+	magick icon-1024.png -resize 60x60 icon-60.png && \
+	magick icon-1024.png -resize 58x58 icon-58.png && \
+	magick icon-1024.png -resize 40x40 icon-40.png && \
+	magick icon-1024.png -resize 29x29 icon-29.png && \
+	magick icon-1024.png -resize 20x20 icon-20.png
+	@cp temp_icons/icon-*.png assets/icons/
+	@cp temp_icons/icon-*.png ios/CYYMobileApp/Images.xcassets/AppIcon.appiconset/
+	@rm -rf temp_icons
+	@echo "✅ App icons optimized and updated!"
 
 # iOS Signing Configuration
 configure-signing:
