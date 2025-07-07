@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, An
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Database } from '../utils/database';
+import { sendDelayedTestNotification, debugNotificationStatus } from '../utils/notifications';
 import { flipperLog } from '../utils/flipper';
 import DebugInfo from '../components/DebugInfo';
 import CollapsibleHeader from '../components/CollapsibleHeader';
@@ -164,7 +165,8 @@ const SettingsScreen: React.FC = () => {
       </CollapsibleHeader>
       
       <ScrollView 
-        style={styles.content} 
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -263,8 +265,8 @@ const SettingsScreen: React.FC = () => {
         {__DEV__ && (
           <View style={styles.settingsGroup}>
             <View style={styles.groupHeader}>
-              <Icon name="bug-report" size={20} color="#666" />
-              <Text style={styles.groupTitle}>Developer Tools</Text>
+              <Icon name="science" size={20} color="#666" />
+              <Text style={styles.groupTitle}>Testing Tools</Text>
             </View>
 
             <TouchableOpacity
@@ -285,6 +287,136 @@ const SettingsScreen: React.FC = () => {
               </View>
               <Icon name="chevron-right" size={20} color="#6C5CE7" />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dangerButton}
+              onPress={async () => {
+                try {
+                  const medications = await Database.getMedications();
+                  if (medications.length > 0) {
+                    const firstMedication = medications[0];
+                    
+                    // Log notification setup
+                    console.log('Testing notification setup');
+                    
+                    await sendDelayedTestNotification(firstMedication, 5);
+                    flipperLog.info('Delayed test notification scheduled', { medicationId: firstMedication.id });
+                    Alert.alert(
+                      'Test Notification Scheduled! ⏰',
+                      `Your test reminder for ${firstMedication.name} will appear in 5 seconds.\n\n📱 To test action buttons:\n1. Tap "Got it!" and minimize the app\n2. When the notification appears, long press it\n3. Try the quick action buttons: Taken, Snooze, Skip, or Take Photo`,
+                      [{ text: 'Got it!' }]
+                    );
+                  } else {
+                    Alert.alert(
+                      'No Medications Found',
+                      'Please add a medication first to test notifications.',
+                      [{ text: 'OK' }]
+                    );
+                  }
+                } catch (error) {
+                  flipperLog.error('Failed to schedule delayed test notification', error);
+                  console.error('Delayed test notification error:', error);
+                  Alert.alert('Error', `Failed to schedule delayed test notification: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }}
+            >
+              <View style={styles.settingInfo}>
+                <View style={styles.debugIcon}>
+                  <Icon name="schedule" size={20} color="#FF9800" />
+                </View>
+                <View style={styles.settingDetails}>
+                  <Text style={styles.debugLabel}>Test Notification</Text>
+                  <Text style={styles.settingDescription}>Test your medication reminders and action buttons</Text>
+                </View>
+              </View>
+              <Icon name="chevron-right" size={20} color="#FF9800" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dangerButton}
+              onPress={async () => {
+                try {
+                  const status = await debugNotificationStatus();
+                  flipperLog.info('Notification status checked', status);
+                  Alert.alert(
+                    'Notification Status 🔍',
+                    `Permissions: ${status.hasPermission ? '✅ Granted' : '❌ Denied'}\nPlatform: ${status.platform}\n\nYour notification system is ${status.hasPermission ? 'working properly' : 'missing permissions'}.`,
+                    [{ text: 'OK' }]
+                  );
+                } catch (error) {
+                  flipperLog.error('Failed to debug notification status', error);
+                  console.error('Debug notification status error:', error);
+                  Alert.alert('Error', `Failed to debug notification status: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }}
+            >
+              <View style={styles.settingInfo}>
+                <View style={styles.debugIcon}>
+                  <Icon name="bug-report" size={20} color="#FF9800" />
+                </View>
+                <View style={styles.settingDetails}>
+                  <Text style={styles.debugLabel}>Check Notification Status</Text>
+                  <Text style={styles.settingDescription}>View permissions and notification settings</Text>
+                </View>
+              </View>
+              <Icon name="chevron-right" size={20} color="#FF9800" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dangerButton}
+              onPress={async () => {
+                try {
+                  const medications = await Database.getMedications();
+                  if (medications.length > 0) {
+                    const firstMedication = medications[0];
+                    
+                    // Test database logging directly
+                    const now = new Date();
+                    const logId = Database.generateId();
+                    
+                    await Database.saveMedicationLog({
+                      id: logId,
+                      medicationId: firstMedication.id,
+                      scheduledTime: now,
+                      actualTime: now,
+                      status: 'taken',
+                      notes: 'Manual test log from settings',
+                      createdAt: now,
+                    });
+                    
+                    flipperLog.info('Manual test log created', { medicationId: firstMedication.id, logId });
+                    Alert.alert(
+                      'Test Log Created! ✅',
+                      `Test medication log created for ${firstMedication.name}.\n\nCheck the Track screen to see if it appears.`,
+                      [{ text: 'OK' }]
+                    );
+                  } else {
+                    Alert.alert(
+                      'No Medications Found',
+                      'Please add a medication first to test logging.',
+                      [{ text: 'OK' }]
+                    );
+                  }
+                } catch (error) {
+                  flipperLog.error('Failed to create test log', error);
+                  console.error('Test log error:', error);
+                  Alert.alert('Error', `Failed to create test log: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }}
+            >
+              <View style={styles.settingInfo}>
+                <View style={styles.debugIcon}>
+                  <Icon name="playlist-add-check" size={20} color="#FF9800" />
+                </View>
+                <View style={styles.settingDetails}>
+                  <Text style={styles.debugLabel}>Test Database Logging</Text>
+                  <Text style={styles.settingDescription}>Manually create a test medication log</Text>
+                </View>
+              </View>
+              <Icon name="chevron-right" size={20} color="#FF9800" />
+            </TouchableOpacity>
+
+
           </View>
         )}
       </ScrollView>
@@ -323,6 +455,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 140, // Account for collapsible header
+  },
+  scrollContent: {
+    paddingBottom: 250, // Extra space for bottom tab bar and content
   },
   loadingContainer: {
     flex: 1,

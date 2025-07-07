@@ -1,37 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Database } from '../utils/database';
 import { scheduleWeeklyReminders } from '../utils/notifications';
 import { flipperLog } from '../utils/flipper';
+import { formatTime } from '../utils/timeUtils';
+import { getDayAbbreviation } from '../utils/dateUtils';
 import { GRADIENTS } from '../constants/colors';
+import { SPACING, BORDER_RADIUS, SHADOWS, PERFORMANCE } from '../utils/constants';
 import CollapsibleHeader from '../components/CollapsibleHeader';
 import { Medication } from '../types';
 
 const HomeScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
   // Animated values for collapsible header
   const scrollY = useRef(new Animated.Value(0)).current;
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 120],
-    outputRange: [120, 60],
-    extrapolate: 'clamp',
-  });
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 60, 120],
-    outputRange: [1, 0.7, 0.3],
-    extrapolate: 'clamp',
-  });
-  const titleScale = scrollY.interpolate({
-    inputRange: [0, 120],
-    outputRange: [1, 0.8],
-    extrapolate: 'clamp',
-  });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -40,7 +29,7 @@ const HomeScreen: React.FC = () => {
     }, [])
   );
 
-  const loadMedications = async (isRefreshing = false) => {
+  const loadMedications = useCallback(async (isRefreshing = false) => {
     try {
       flipperLog.database('LOAD', 'medications', { isRefreshing });
       const meds = await Database.getMedications();
@@ -55,7 +44,7 @@ const HomeScreen: React.FC = () => {
         setRefreshing(false);
       }
     }
-  };
+  }, []);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -87,6 +76,16 @@ const HomeScreen: React.FC = () => {
     }
   };
 
+  const editMedication = (medication: Medication) => {
+    flipperLog.navigation('NAVIGATE_TO_EDIT', 'AddMedication', { medicationId: medication.id });
+    navigation.navigate('AddMedication' as never, { medication } as never);
+  };
+
+  const viewMedicationDetails = (medicationId: string) => {
+    flipperLog.navigation('NAVIGATE_TO_DETAILS', 'MedicationDetails', { medicationId });
+    navigation.navigate('MedicationDetails' as never, { medicationId } as never);
+  };
+
   const deleteMedication = async (id: string, name: string) => {
     Alert.alert(
       'Delete Medication',
@@ -109,18 +108,6 @@ const HomeScreen: React.FC = () => {
     );
   };
 
-  const getDayAbbreviation = (day: number) => {
-    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    return days[day];
-  };
-
-  const formatTime = (time: string) => {
-    const [hour, minute] = time.split(':');
-    const hourNum = parseInt(hour);
-    const ampm = hourNum >= 12 ? 'PM' : 'AM';
-    const displayHour = hourNum % 12 || 12;
-    return `${displayHour}:${minute} ${ampm}`;
-  };
 
   if (loading) {
     return (
@@ -165,7 +152,7 @@ const HomeScreen: React.FC = () => {
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
-        scrollEventThrottle={16}
+        scrollEventThrottle={PERFORMANCE.SCROLL_THROTTLE}
       >
         {medications.length === 0 ? (
           <View style={styles.emptyState}>
@@ -180,65 +167,83 @@ const HomeScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Your Medications</Text>
             {medications.map((medication) => (
               <View key={medication.id} style={styles.medicationCard}>
-                <View style={styles.medicationHeader}>
-                  <View style={styles.medicationInfo}>
-                    <View style={[styles.medicationIcon, { backgroundColor: medication.color }]}>
-                      <Icon name="local-pharmacy" size={24} color="white" />
+                <TouchableOpacity
+                  onPress={() => viewMedicationDetails(medication.id)}
+                  style={styles.medicationCardContent}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.medicationHeader}>
+                    <View style={styles.medicationInfo}>
+                      <View style={[styles.medicationIcon, { backgroundColor: medication.color }]}>
+                        <Icon name="local-pharmacy" size={24} color="white" />
+                      </View>
+                      <View style={styles.medicationDetails}>
+                        <Text style={styles.medicationName}>{medication.name}</Text>
+                        <Text style={styles.medicationDosage}>{medication.dosage}</Text>
+                      </View>
                     </View>
-                    <View style={styles.medicationDetails}>
-                      <Text style={styles.medicationName}>{medication.name}</Text>
-                      <Text style={styles.medicationDosage}>{medication.dosage}</Text>
+                    <View style={styles.medicationActions}>
+                      <TouchableOpacity
+                        onPress={() => toggleMedication(medication.id, medication.isActive)}
+                        style={styles.actionButton}
+                      >
+                        <Icon 
+                          name={medication.isActive ? 'toggle-on' : 'toggle-off'} 
+                          size={32} 
+                          color={medication.isActive ? '#4CAF50' : '#BDBDBD'} 
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => editMedication(medication)}
+                        style={styles.actionButton}
+                      >
+                        <Icon name="edit" size={24} color="#f6d55c" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => deleteMedication(medication.id, medication.name)}
+                        style={styles.actionButton}
+                      >
+                        <Icon name="delete" size={24} color="#FF6B6B" />
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                  <View style={styles.medicationActions}>
-                    <TouchableOpacity
-                      onPress={() => toggleMedication(medication.id, medication.isActive)}
-                      style={styles.actionButton}
-                    >
-                      <Icon 
-                        name={medication.isActive ? 'toggle-on' : 'toggle-off'} 
-                        size={32} 
-                        color={medication.isActive ? '#4CAF50' : '#BDBDBD'} 
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => deleteMedication(medication.id, medication.name)}
-                      style={styles.actionButton}
-                    >
-                      <Icon name="delete" size={24} color="#FF6B6B" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                
-                <View style={styles.medicationFooter}>
-                  <View style={styles.timeSection}>
-                    <Icon name="access-time" size={16} color="#666" />
-                    <Text style={styles.timeText}>{formatTime(medication.reminderTime)}</Text>
                   </View>
                   
-                  <View style={styles.notificationSection}>
-                    <Icon name="notifications" size={16} color="#666" />
-                    <Text style={styles.notificationText}>{medication.notificationTypes?.join(', ') || 'notification'}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.daysSection}>
-                  {[0, 1, 2, 3, 4, 5, 6].map(day => (
-                    <View
-                      key={day}
-                      style={[
-                        styles.dayChip,
-                        medication.reminderDays.includes(day) && styles.dayChipActive
-                      ]}
-                    >
-                      <Text style={[
-                        styles.dayChipText,
-                        medication.reminderDays.includes(day) && styles.dayChipTextActive
-                      ]}>
-                        {getDayAbbreviation(day)}
-                      </Text>
+                  <View style={styles.medicationFooter}>
+                    <View style={styles.timeSection}>
+                      <Icon name="access-time" size={16} color="#666" />
+                      <Text style={styles.timeText}>{formatTime(medication.reminderTime)}</Text>
                     </View>
-                  ))}
+                    
+                    <View style={styles.notificationSection}>
+                      <Icon name="notifications" size={16} color="#666" />
+                      <Text style={styles.notificationText}>{medication.notificationTypes?.join(', ') || 'notification'}</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.daysSection}>
+                    {[0, 1, 2, 3, 4, 5, 6].map(day => (
+                      <View
+                        key={day}
+                        style={[
+                          styles.dayChip,
+                          medication.reminderDays.includes(day) && styles.dayChipActive
+                        ]}
+                      >
+                        <Text style={[
+                          styles.dayChipText,
+                          medication.reminderDays.includes(day) && styles.dayChipTextActive
+                        ]}>
+                          {getDayAbbreviation(day)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+                
+                {/* Tap to view details hint */}
+                <View style={styles.detailsHint}>
+                  <Icon name="info" size={14} color="#999" />
+                  <Text style={styles.detailsHintText}>Tap to view details</Text>
                 </View>
               </View>
             ))}
@@ -324,14 +329,12 @@ const styles = StyleSheet.create({
   },
   medicationCard: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: BORDER_RADIUS.LARGE,
+    marginBottom: SPACING.MEDIUM,
+    ...SHADOWS.MEDIUM,
+  },
+  medicationCardContent: {
+    padding: SPACING.LARGE,
   },
   medicationHeader: {
     flexDirection: 'row',
@@ -419,6 +422,24 @@ const styles = StyleSheet.create({
   },
   dayChipTextActive: {
     color: 'white',
+  },
+  detailsHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8F9FA',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    borderBottomLeftRadius: BORDER_RADIUS.LARGE,
+    borderBottomRightRadius: BORDER_RADIUS.LARGE,
+  },
+  detailsHintText: {
+    fontSize: 12,
+    color: '#999',
+    marginLeft: 6,
+    fontStyle: 'italic',
   },
 });
 

@@ -1,7 +1,7 @@
 # CYY Mobile App - Makefile
 # React Native Medication Reminder App
 
-.PHONY: help install ios iphone android clean reset build-ios build-android
+.PHONY: help install ios iphone iphone-list iphone-select android clean reset build-ios build-android check-env check-device
 
 # Default target
 help:
@@ -15,7 +15,9 @@ help:
 	@echo "Development Commands (Simulator-focused):"
 	@echo "  make ios              Run on iOS simulator (Debug mode)"
 	@echo "  make ios-fast         Run on iOS simulator (Skip clean build)"
-	@echo "  make iphone           Run on connected iPhone device"
+	@echo "  make iphone           Run on connected iPhone device (auto-detect)"
+	@echo "  make iphone-list      List all connected iOS devices"
+	@echo "  make iphone-select    Choose specific iPhone device"
 	@echo "  make ios-release      Run on iOS simulator (Release mode)"
 	@echo "  make ios-simulator    Choose specific iOS simulator"
 	@echo "  make android          Run on Android emulator (Debug mode)"
@@ -47,6 +49,8 @@ help:
 	@echo "  make reset            Reset node_modules and caches"
 	@echo "  make lint             Run linter"
 	@echo "  make test             Run tests"
+	@echo "  make check-env        Check development environment"
+	@echo "  make check-device     Check iOS device setup and certificates"
 
 # Installation and Setup
 install:
@@ -107,6 +111,21 @@ ios-fast:
 
 iphone:
 	@echo "🍎 Running on connected iPhone device..."
+	@echo "📱 Checking for connected devices..."
+	@if ! xcrun xctrace list devices 2>/dev/null | grep -E "(iPhone|iPad)" | grep -v "Simulator" | grep -v "unavailable" | head -5; then \
+		echo "❌ No iOS devices found. Please:"; \
+		echo "  1. Connect your iPhone via USB"; \
+		echo "  2. Trust this computer on your device"; \
+		echo "  3. Ensure Developer Mode is enabled"; \
+		echo "  4. Check that your device appears in Xcode"; \
+		exit 1; \
+	fi
+	@echo "🔧 Checking development setup..."
+	@if ! security find-identity -p codesigning -v | grep -q "iPhone Developer\|Apple Development"; then \
+		echo "⚠️  No valid development certificates found."; \
+		echo "   Please configure code signing in Xcode first."; \
+	fi
+	@echo "🚀 Launching on device..."
 	npx react-native run-ios --device
 
 ios-simulator:
@@ -115,6 +134,27 @@ ios-simulator:
 	@xcrun simctl list devices | grep -E "(iPhone|iPad)" | grep -v "unavailable"
 	@read -p "Enter simulator name (e.g., iPhone 15 Pro): " SIM_NAME; \
 	npx react-native run-ios --simulator="$$SIM_NAME"
+
+iphone-list:
+	@echo "📱 Connected iOS devices:"
+	@xcrun xctrace list devices 2>/dev/null | grep -E "(iPhone|iPad)" | grep -v "Simulator" | grep -v "unavailable" || echo "❌ No devices found"
+	@echo ""
+	@echo "💡 If no devices appear:"
+	@echo "  1. Connect device via USB"
+	@echo "  2. Trust this computer on device"
+	@echo "  3. Enable Developer Mode in Settings > Privacy & Security"
+	@echo "  4. Open Xcode and ensure device appears in Window > Devices"
+
+iphone-select:
+	@echo "🍎 Running on specific iPhone device..."
+	@echo "📱 Available devices:"
+	@xcrun xctrace list devices 2>/dev/null | grep -E "(iPhone|iPad)" | grep -v "Simulator" | grep -v "unavailable" | nl
+	@read -p "Enter device name or UDID: " DEVICE_ID; \
+	if [[ "$$DEVICE_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$$ ]]; then \
+		npx react-native run-ios --udid="$$DEVICE_ID"; \
+	else \
+		npx react-native run-ios --device="$$DEVICE_ID"; \
+	fi
 
 # Android Commands (Emulator-focused for debugging)
 android:
@@ -308,6 +348,26 @@ check-env:
 	else \
 		echo "Android SDK: ANDROID_HOME not set"; \
 	fi
+
+check-device:
+	@echo "📱 iOS Device Setup Check..."
+	@echo ""
+	@echo "🔍 Connected Devices:"
+	@xcrun xctrace list devices 2>/dev/null | grep -E "(iPhone|iPad)" | grep -v "Simulator" | grep -v "unavailable" || echo "❌ No devices found"
+	@echo ""
+	@echo "🔑 Code Signing Certificates:"
+	@security find-identity -p codesigning -v | grep -E "(iPhone Developer|Apple Development)" || echo "❌ No development certificates found"
+	@echo ""
+	@echo "📋 Development Team:"
+	@if [ -f ios/CYYMobileApp.xcodeproj/project.pbxproj ]; then \
+		grep -o 'DEVELOPMENT_TEAM = [^;]*' ios/CYYMobileApp.xcodeproj/project.pbxproj | head -1 || echo "❌ No development team configured"; \
+	fi
+	@echo ""
+	@echo "💡 If device deployment fails:"
+	@echo "  1. Open project in Xcode: open ios/CYYMobileApp.xcworkspace"
+	@echo "  2. Select your device from the destination menu"
+	@echo "  3. Click 'Build and Run' to verify setup"
+	@echo "  4. Fix any signing/provisioning issues in Xcode first"
 
 # Icon Management
 update-icons:

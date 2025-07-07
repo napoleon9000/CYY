@@ -8,28 +8,31 @@ export const GRADIENTS = {
   // Add Screen - Purple to Light Purple (Creative & Inviting)
   ADD: ['#6C5CE7', '#A29BFE'],
   
-  // History Screen - Teal to Green Gradient (Growth & Progress)
-  HISTORY: ['#11998e', '#38ef7d'], 
+  // Track Screen - Purple to Violet Gradient (Unified with Home/Add)
+  TRACK: ['#764ba2', '#667eea'], 
   
-  // Settings Screen - Pink to Coral Gradient (Vibrant & Energetic)
-  SETTINGS: ['#f093fb', '#f5576c'],
+  // Settings Screen - Muted Yellow to Gold Gradient (Warm & Subtle)
+  SETTINGS: ['#f6d55c', '#ed9121'],
+  
+  // Details Screen - Purple to Dark Purple Gradient (Focused & Detailed)
+  DETAILS: ['#764ba2', '#667eea'],
   
   // Enhanced Multi-Stop Gradients for special effects
   HOME_FANCY: ['#667eea', '#764ba2', '#f093fb'],
   ADD_FANCY: ['#6C5CE7', '#A29BFE', '#DDD6FE'],
-  HISTORY_FANCY: ['#11998e', '#38ef7d', '#A7F3D0'],
-  SETTINGS_FANCY: ['#f093fb', '#f5576c', '#FBBF24'],
+  TRACK_FANCY: ['#764ba2', '#667eea', '#A29BFE'],
+  SETTINGS_FANCY: ['#f6d55c', '#ed9121', '#ffd60a'],
 };
 
 export const TAB_COLORS = {
   // Tab bar icon colors matching each screen's gradient
   HOME: '#667eea',
   ADD: '#6C5CE7', 
-  HISTORY: '#11998e',
-  SETTINGS: '#f093fb',
+  TRACK: '#764ba2',
+  SETTINGS: '#f6d55c',
   
   // Common tab colors
-  ACTIVE: '#6C5CE7',
+  ACTIVE: '#f6d55c',
   INACTIVE: '#8E8E93',
 } as const;
 
@@ -55,7 +58,7 @@ export const COMMON_COLORS = {
 
 // Gradient presets for common UI elements
 export const UI_GRADIENTS = {
-  BUTTON_PRIMARY: ['#6C5CE7', '#A29BFE'],
+  BUTTON_PRIMARY: ['#f6d55c', '#ed9121'],
   BUTTON_SUCCESS: ['#4CAF50', '#8BC34A'],
   BUTTON_WARNING: ['#FF9800', '#FF5722'],
   BUTTON_DANGER: ['#F44336', '#E91E63'],

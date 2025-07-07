@@ -3,18 +3,23 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'react-native';
+import { RouteProp } from '@react-navigation/native';
+
+// Initialize notification system
+import './src/utils/notifications';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
 import AddMedicationScreen from './src/screens/AddMedicationScreen';
-import HistoryScreen from './src/screens/HistoryScreen';
+import TrackScreen from './src/screens/TrackScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import MedicationDetailsScreen from './src/screens/MedicationDetailsScreen';
 
 // Constants
 import { TAB_COLORS } from './src/constants/colors';
 
 // Types
-import { BottomTabParamList, RootStackParamList } from './src/types';
+import { BottomTabParamList, RootStackParamList, TAB_ICONS } from './src/types';
 
 const Tab = createNativeBottomTabNavigator<BottomTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -22,14 +27,14 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const TabNavigator = () => {
   return (
     <Tab.Navigator
-      screenOptions={({ route }: { route: any }) => ({
+      screenOptions={({ route }: { route: RouteProp<BottomTabParamList> }) => ({
         headerShown: false,
         tabBarInactiveTintColor: TAB_COLORS.INACTIVE,
         tabBarActiveTintColor: (() => {
           switch (route.name) {
             case 'Home': return TAB_COLORS.HOME;
             case 'Add': return TAB_COLORS.ADD;
-            case 'History': return TAB_COLORS.HISTORY;
+            case 'Track': return TAB_COLORS.TRACK;
             case 'Settings': return TAB_COLORS.SETTINGS;
             default: return TAB_COLORS.ACTIVE;
           }
@@ -41,7 +46,7 @@ const TabNavigator = () => {
         component={HomeScreen}
         options={{
           title: 'Home',
-          tabBarIcon: () => ({ sfSymbol: 'house' }),
+          tabBarIcon: () => ({ sfSymbol: TAB_ICONS.HOME }),
         }}
       />
       <Tab.Screen 
@@ -49,15 +54,15 @@ const TabNavigator = () => {
         component={AddMedicationScreen}
         options={{
           title: 'Add',
-          tabBarIcon: () => ({ sfSymbol: 'plus.circle' }),
+          tabBarIcon: () => ({ sfSymbol: TAB_ICONS.ADD }),
         }}
       />
       <Tab.Screen 
-        name="History" 
-        component={HistoryScreen}
+        name="Track" 
+        component={TrackScreen}
         options={{
-          title: 'History',
-          tabBarIcon: () => ({ sfSymbol: 'clock' }),
+          title: 'Track',
+          tabBarIcon: () => ({ sfSymbol: TAB_ICONS.TRACK }),
         }}
       />
       <Tab.Screen 
@@ -65,7 +70,7 @@ const TabNavigator = () => {
         component={SettingsScreen}
         options={{
           title: 'Settings',
-          tabBarIcon: () => ({ sfSymbol: 'gear' }),
+          tabBarIcon: () => ({ sfSymbol: TAB_ICONS.SETTINGS }),
         }}
       />
     </Tab.Navigator>
@@ -84,6 +89,13 @@ const App = () => {
             component={AddMedicationScreen}
             options={{
               presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="MedicationDetails" 
+            component={MedicationDetailsScreen}
+            options={{
               headerShown: false,
             }}
           />

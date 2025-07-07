@@ -1,6 +1,8 @@
 import PushNotification from 'react-native-push-notification';
+import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { Medication } from '../types';
+import { Medication, MedicationLog } from '../types';
+import { Database } from './database';
 import { flipperLog } from './flipper';
 
 // Configure notifications
@@ -10,13 +12,63 @@ PushNotification.configure({
   },
 
   onNotification: function (notification) {
-    console.log('NOTIFICATION:', notification);
-    // notification.finish is called automatically in React Native
+    console.log('🔔 NOTIFICATION RECEIVED:', notification);
+    flipperLog.notification('NOTIFICATION_RECEIVED', {
+      title: (notification as any).title,
+      message: (notification as any).message,
+      action: (notification as any).action,
+      actionIdentifier: (notification as any).actionIdentifier,
+      userInfo: (notification as any).userInfo,
+      data: (notification as any).data,
+      foreground: (notification as any).foreground,
+      userInteraction: (notification as any).userInteraction
+    });
+    
+    // Check for action identifier (iOS action buttons)
+    const actionIdentifier = (notification as any).getActionIdentifier?.();
+    if (actionIdentifier) {
+      console.log('🎯 ACTION BUTTON CLICKED:', actionIdentifier);
+      flipperLog.notification('ACTION_BUTTON_CLICKED', { actionIdentifier });
+      
+      // Create action notification object
+      const actionNotification = {
+        action: actionIdentifier,
+        actionIdentifier: actionIdentifier,
+        userInfo: (notification as any).getData?.() || (notification as any).userInfo,
+        data: (notification as any).getData?.() || (notification as any).data,
+        title: (notification as any).getAlert?.(),
+        message: (notification as any).getAlert?.(),
+        finish: (notification as any).finish?.bind(notification)
+      };
+      
+      // Handle the action
+      handleNotificationAction(actionNotification);
+    }
+    
+    // Required for iOS to properly handle notification actions
+    if (notification.finish) {
+      notification.finish(PushNotificationIOS.FetchResult.NoData);
+    }
   },
 
   onAction: function (notification) {
-    console.log('ACTION:', notification.action);
-    console.log('NOTIFICATION:', notification);
+    console.log('🎯 ACTION RECEIVED (FALLBACK):', (notification as any).action);
+    console.log('FULL ACTION NOTIFICATION:', notification);
+    flipperLog.notification('ACTION_RECEIVED_FALLBACK', {
+      action: (notification as any).action,
+      actionIdentifier: (notification as any).actionIdentifier,
+      userInfo: (notification as any).userInfo,
+      data: (notification as any).data,
+      fullNotification: notification
+    });
+    
+    // Handle the action
+    handleNotificationAction(notification);
+    
+    // Required for iOS to properly dismiss the notification
+    if (notification.finish) {
+      notification.finish(PushNotificationIOS.FetchResult.NoData);
+    }
   },
 
   onRegistrationError: function(err) {
@@ -33,19 +85,263 @@ PushNotification.configure({
   requestPermissions: Platform.OS === 'ios',
 });
 
-// Create notification channel (Android)
-PushNotification.createChannel(
-  {
-    channelId: 'medication-reminders',
-    channelName: 'Medication Reminders',
-    channelDescription: 'Reminders to take your medications',
-    playSound: true,
-    soundName: 'default',
-    importance: 4,
-    vibrate: true,
-  },
-  (created) => console.log(`Channel created: ${created}`)
-);
+// Store the iOS listener for cleanup
+let iOSNotificationListener: any = null;
+
+// iOS-specific action handling using PushNotificationIOS directly
+if (Platform.OS === 'ios') {
+  try {
+    // Configure notification categories with actions
+    PushNotificationIOS.setNotificationCategories([
+      {
+        id: 'MEDICATION_ACTIONS',
+        actions: [
+          {
+            id: 'TAKEN',
+            title: 'Taken',
+            options: {
+              foreground: false,
+              authenticationRequired: false,
+              destructive: false,
+            },
+          },
+          {
+            id: 'SNOOZE',
+            title: 'Snooze 5min',
+            options: {
+              foreground: false,
+              authenticationRequired: false,
+              destructive: false,
+            },
+          },
+          {
+            id: 'SKIP',
+            title: 'Skip',
+            options: {
+              foreground: false,
+              authenticationRequired: false,
+              destructive: true,
+            },
+          },
+          {
+            id: 'TAKEN_PHOTO',
+            title: 'Taken + Photo',
+            options: {
+              foreground: true,
+              authenticationRequired: false,
+              destructive: false,
+            },
+          },
+        ],
+      },
+    ]);
+    console.log('✅ iOS notification categories configured successfully');
+
+    // Add dedicated listener for iOS notifications
+    const iOSNotificationHandler = (notification: any) => {
+      console.log('🍎 iOS NOTIFICATION HANDLER:', notification);
+      flipperLog.notification('iOS_NOTIFICATION_HANDLER', {
+        actionIdentifier: notification.getActionIdentifier?.(),
+        alert: notification.getAlert?.(),
+        data: notification.getData?.(),
+        category: notification.getCategory?.()
+      });
+
+      const actionIdentifier = notification.getActionIdentifier?.();
+      if (actionIdentifier) {
+        console.log('🎯 iOS ACTION IDENTIFIED:', actionIdentifier);
+        flipperLog.notification('iOS_ACTION_IDENTIFIED', { actionIdentifier });
+        
+        // Create a notification object compatible with our handler
+        const actionNotification = {
+          action: actionIdentifier,
+          actionIdentifier: actionIdentifier,
+          userInfo: notification.getData?.(),
+          data: notification.getData?.(),
+          title: notification.getAlert?.(),
+          message: notification.getAlert?.(),
+          finish: notification.finish?.bind(notification)
+        };
+        
+        // Handle the action using our existing handler
+        handleNotificationAction(actionNotification);
+      }
+
+      // Always call finish for iOS
+      const result = PushNotificationIOS.FetchResult.NoData;
+      notification.finish(result);
+    };
+
+    // Add iOS-specific event listeners
+    PushNotificationIOS.addEventListener('notification', iOSNotificationHandler);
+    PushNotificationIOS.addEventListener('localNotification', iOSNotificationHandler);
+
+    console.log('✅ iOS notification listeners configured');
+  } catch (error) {
+    console.error('❌ Error setting up iOS notifications:', error);
+  }
+} else {
+  // Android notification channel configuration
+  PushNotification.createChannel(
+    {
+      channelId: 'medication-reminders',
+      channelName: 'Medication Reminders',
+      channelDescription: 'Reminders to take your medications',
+      playSound: true,
+      soundName: 'default',
+      importance: 4,
+      vibrate: true,
+    },
+    (created) => console.log(`Android channel created: ${created}`)
+  );
+}
+
+// Handle notification actions
+const handleNotificationAction = async (notification: any) => {
+  console.log('🔧 HANDLING NOTIFICATION ACTION - START');
+  flipperLog.notification('RAW_NOTIFICATION_ACTION', notification);
+  
+  // Extract action from different possible locations
+  const action = notification.action || notification.actionIdentifier || notification.identifier;
+  const userInfo = notification.userInfo || notification.data || {};
+  const medicationId = userInfo?.medicationId;
+  
+  console.log('🔧 EXTRACTED ACTION DATA:', {
+    action,
+    medicationId,
+    userInfo,
+    hasAction: !!action,
+    hasMedicationId: !!medicationId
+  });
+  
+  flipperLog.notification('PARSED_ACTION_DATA', { action, medicationId, userInfo });
+  
+  if (!medicationId) {
+    console.log('❌ ERROR: No medication ID found');
+    flipperLog.error('No medication ID in notification action', { action, userInfo, fullNotification: notification });
+    showImmediateNotification('Error', 'Could not process notification action - missing medication ID');
+    return;
+  }
+
+  if (!action) {
+    console.log('❌ ERROR: No action found');
+    flipperLog.error('No action in notification', { userInfo, fullNotification: notification });
+    showImmediateNotification('Error', 'Could not process notification action - missing action');
+    return;
+  }
+
+  console.log(`🔧 PROCESSING ACTION: ${action} for medication: ${medicationId}`);
+  flipperLog.notification('HANDLING_ACTION', { action, medicationId });
+
+  try {
+    const medication = await Database.getMedicationById(medicationId);
+    if (!medication) {
+      console.log('❌ ERROR: Medication not found in database');
+      flipperLog.error('Medication not found for action', { medicationId, action });
+      showImmediateNotification('Error', 'Medication not found');
+      return;
+    }
+
+    console.log(`✅ MEDICATION FOUND: ${medication.name}`);
+    const now = new Date();
+    const logId = Database.generateId();
+
+    switch (action) {
+      case 'TAKEN':
+        console.log('🔧 PROCESSING TAKEN ACTION');
+        await Database.saveMedicationLog({
+          id: logId,
+          medicationId,
+          scheduledTime: now,
+          actualTime: now,
+          status: 'taken',
+          notes: 'Marked as taken from notification',
+          createdAt: now,
+        });
+        flipperLog.notification('MARKED_TAKEN', { medicationId, logId });
+        console.log('✅ TAKEN ACTION COMPLETED');
+        showImmediateNotification('✅ Medication Taken', `${medication.name} has been marked as taken.`);
+        break;
+
+      case 'SNOOZE':
+        console.log('🔧 PROCESSING SNOOZE ACTION');
+        // Create a simple snooze notification in 5 minutes
+        const snoozeTime = new Date(now.getTime() + 5 * 60 * 1000);
+        const snoozeNotificationId = `snooze_${medication.id}_${snoozeTime.getTime()}`;
+        
+        const snoozeConfig: any = {
+          id: snoozeNotificationId,
+          title: `⏰ Snooze Reminder: ${medication.name}`,
+          message: `Time to take your ${medication.dosage} of ${medication.name}`,
+          date: snoozeTime,
+          userInfo: {
+            medicationId: medication.id,
+            notificationId: snoozeNotificationId,
+            isSnooze: true,
+          },
+        };
+
+        // Add actions to the snoozed notification
+        if (Platform.OS === 'ios') {
+          snoozeConfig.category = 'MEDICATION_ACTIONS';
+        } else {
+          snoozeConfig.channelId = 'medication-reminders';
+          snoozeConfig.actions = ['TAKEN', 'SNOOZE', 'SKIP', 'TAKEN_PHOTO'];
+        }
+
+        PushNotification.localNotificationSchedule(snoozeConfig);
+        flipperLog.notification('SNOOZED', { medicationId, snoozeTime });
+        console.log('✅ SNOOZE ACTION COMPLETED');
+        showImmediateNotification('⏰ Medication Snoozed', `${medication.name} reminder set for 5 minutes.`);
+        break;
+
+      case 'SKIP':
+        console.log('🔧 PROCESSING SKIP ACTION');
+        await Database.saveMedicationLog({
+          id: logId,
+          medicationId,
+          scheduledTime: now,
+          actualTime: now,
+          status: 'skipped',
+          notes: 'Skipped from notification',
+          createdAt: now,
+        });
+        flipperLog.notification('MARKED_SKIPPED', { medicationId, logId });
+        console.log('✅ SKIP ACTION COMPLETED');
+        showImmediateNotification('❌ Medication Skipped', `${medication.name} has been skipped.`);
+        break;
+
+      case 'TAKEN_PHOTO':
+        console.log('🔧 PROCESSING TAKEN_PHOTO ACTION');
+        await Database.saveMedicationLog({
+          id: logId,
+          medicationId,
+          scheduledTime: now,
+          actualTime: now,
+          status: 'taken',
+          notes: 'Taken with photo from notification',
+          createdAt: now,
+        });
+        flipperLog.notification('MARKED_TAKEN_WITH_PHOTO', { medicationId, logId });
+        console.log('✅ TAKEN_PHOTO ACTION COMPLETED');
+        showImmediateNotification('📷 Medication Taken', `${medication.name} marked as taken. Open app to add photo.`);
+        break;
+
+      default:
+        console.log(`❌ ERROR: Unknown action: ${action}`);
+        flipperLog.error('Unknown notification action', { action, availableActions: ['TAKEN', 'SNOOZE', 'SKIP', 'TAKEN_PHOTO'] });
+        showImmediateNotification('Error', `Unknown action: ${action}`);
+        break;
+    }
+    
+    console.log('🔧 HANDLING NOTIFICATION ACTION - COMPLETED');
+  } catch (error) {
+    console.log('❌ ERROR in handleNotificationAction:', error);
+    flipperLog.error('Error handling notification action', error);
+    console.error('Error handling notification action:', error);
+    showImmediateNotification('Error', 'Failed to process notification action');
+  }
+};
 
 export const checkNotificationPermission = async (): Promise<boolean> => {
   flipperLog.notification('CHECKING_PERMISSION', { platform: Platform.OS });
@@ -123,9 +419,8 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
 export const scheduleNotification = (medication: Medication, notificationTime: Date) => {
   const notificationId = `med_${medication.id}_${notificationTime.getTime()}`;
   
-  PushNotification.localNotificationSchedule({
+  const notificationConfig: any = {
     id: notificationId,
-    channelId: 'medication-reminders',
     title: `Time to take ${medication.name}!`,
     message: `Don't forget your ${medication.dosage} of ${medication.name}`,
     date: notificationTime,
@@ -135,8 +430,18 @@ export const scheduleNotification = (medication: Medication, notificationTime: D
       medicationId: medication.id,
       notificationId,
     },
-    actions: ['Mark as Taken', 'Snooze'],
-  });
+  };
+
+  // iOS specific configuration
+  if (Platform.OS === 'ios') {
+    notificationConfig.category = 'MEDICATION_ACTIONS';
+  } else {
+    // Android specific configuration
+    notificationConfig.channelId = 'medication-reminders';
+    notificationConfig.actions = ['TAKEN', 'SNOOZE', 'SKIP', 'TAKEN_PHOTO'];
+  }
+
+  PushNotification.localNotificationSchedule(notificationConfig);
 };
 
 export const cancelNotification = (notificationId: string) => {
@@ -193,12 +498,120 @@ export const vibrateDevice = (pattern: number[] = [500]) => {
 };
 
 export const showImmediateNotification = (title: string, message: string) => {
-  PushNotification.localNotification({
-    channelId: 'medication-reminders',
+  const notificationConfig: any = {
     title,
     message,
     playSound: true,
     soundName: 'default',
     vibrate: true,
-  });
+  };
+
+  // Platform specific configuration
+  if (Platform.OS === 'android') {
+    notificationConfig.channelId = 'medication-reminders';
+  }
+
+  PushNotification.localNotification(notificationConfig);
 };
+
+// Export the action handler for use in the app
+export const handleNotificationActionFromApp = handleNotificationAction;
+
+// Test notification with actions
+export const sendTestNotification = async (medication: Medication) => {
+  return sendDelayedTestNotification(medication, 5);
+};
+
+// Send a test notification (delayed to work better with iOS)
+export const sendDelayedTestNotification = async (medication: Medication, delaySeconds: number = 5) => {
+  const notificationId = `test_${medication.id}_${Date.now()}`;
+  
+  try {
+    // Check notification permissions first
+    const hasPermission = await checkNotificationPermission();
+    
+    if (!hasPermission) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        throw new Error('Notification permission denied. Please enable notifications in Settings.');
+      }
+    }
+
+    const scheduledTime = new Date(Date.now() + delaySeconds * 1000);
+    
+    const baseConfig = {
+      id: notificationId,
+      title: `💊 Test Reminder: ${medication.name}`,
+      message: `${medication.dosage} • Long press for quick actions`,
+      date: scheduledTime,
+      playSound: true,
+      soundName: 'default',
+      vibrate: true,
+      userInfo: {
+        medicationId: medication.id,
+        notificationId,
+        isTest: true,
+      },
+    };
+
+    let notificationConfig: any;
+
+    // Platform specific configuration
+    if (Platform.OS === 'ios') {
+      notificationConfig = {
+        ...baseConfig,
+        category: 'MEDICATION_ACTIONS',
+      };
+    } else {
+      notificationConfig = {
+        ...baseConfig,
+        channelId: 'medication-reminders',
+        actions: ['TAKEN', 'SNOOZE', 'SKIP', 'TAKEN_PHOTO'],
+      };
+    }
+
+    // Schedule notification
+    PushNotification.localNotificationSchedule(notificationConfig);
+    
+    console.log('Test notification scheduled successfully');
+    
+  } catch (error) {
+    console.error('Failed to send test notification:', error);
+    throw error;
+  }
+};
+
+// Check notification setup
+export const checkNotificationCategories = () => {
+  if (Platform.OS === 'ios') {
+    console.log('iOS notification categories configured');
+  } else {
+    console.log('Android notification channel configured');
+  }
+};
+
+// Check notification status
+export const debugNotificationStatus = async () => {
+  try {
+    // Check permissions
+    const hasPermission = await checkNotificationPermission();
+    
+    // Check scheduled notifications
+    PushNotification.getScheduledLocalNotifications((notifications) => {
+      console.log('Scheduled notifications:', notifications.length);
+    });
+    
+    // Log configuration
+    checkNotificationCategories();
+    
+    return {
+      hasPermission,
+      platform: Platform.OS,
+      configuredCategories: Platform.OS === 'ios' ? 'MEDICATION_ACTIONS' : 'medication-reminders'
+    };
+  } catch (error) {
+    console.error('Failed to check notification status:', error);
+    throw error;
+  }
+};
+

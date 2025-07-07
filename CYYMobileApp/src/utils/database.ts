@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Medication, MedicationLog, AppSettings } from '../types';
 import { flipperLog, flipperPerformance } from './flipper';
+import { DEFAULT_APP_SETTINGS } from './constants';
 
 const KEYS = {
   MEDICATIONS: '@medications',
@@ -121,30 +122,31 @@ export class Database {
     }
   }
 
+  static async deleteMedicationLog(logId: string): Promise<void> {
+    const perf = flipperPerformance.start('deleteMedicationLog');
+    try {
+      const logs = await this.getMedicationLogs();
+      const filteredLogs = logs.filter(log => log.id !== logId);
+      
+      await AsyncStorage.setItem(KEYS.MEDICATION_LOGS, JSON.stringify(filteredLogs));
+      flipperLog.database('DELETE', 'medication_logs', { id: logId });
+      perf.end();
+    } catch (error) {
+      flipperLog.error('Error deleting medication log', error);
+      console.error('Error deleting medication log:', error);
+      perf.end();
+      throw error;
+    }
+  }
+
   // Settings
   static async getSettings(): Promise<AppSettings> {
     try {
       const data = await AsyncStorage.getItem(KEYS.SETTINGS);
-      const defaultSettings: AppSettings = {
-        notificationsEnabled: true,
-        soundEnabled: true,
-        vibrationEnabled: true,
-        reminderSnoozeMinutes: 5,
-        darkMode: false,
-        reminderPersistence: true,
-      };
-      
-      return data ? { ...defaultSettings, ...JSON.parse(data) } : defaultSettings;
+      return data ? { ...DEFAULT_APP_SETTINGS, ...JSON.parse(data) } : DEFAULT_APP_SETTINGS;
     } catch (error) {
       console.error('Error getting settings:', error);
-      return {
-        notificationsEnabled: true,
-        soundEnabled: true,
-        vibrationEnabled: true,
-        reminderSnoozeMinutes: 5,
-        darkMode: false,
-        reminderPersistence: true,
-      };
+      return DEFAULT_APP_SETTINGS;
     }
   }
 
@@ -172,7 +174,7 @@ export class Database {
   }
 
   static generateId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
   }
 }
 

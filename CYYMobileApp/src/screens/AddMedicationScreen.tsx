@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert,
 import LinearGradient from 'react-native-linear-gradient';
 import DatePicker from 'react-native-date-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Database, MEDICATION_COLORS } from '../utils/database';
 import { requestNotificationPermission, scheduleWeeklyReminders } from '../utils/notifications';
 import { flipperLog } from '../utils/flipper';
@@ -13,18 +13,30 @@ import { Medication } from '../types';
 
 const AddMedicationScreen: React.FC = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const medication = (route.params as any)?.medication as Medication | undefined;
+  const isEditing = !!medication;
+  
   const [formData, setFormData] = useState({
-    name: '',
-    dosage: '',
-    reminderTime: '',
-    reminderDays: [1, 2, 3, 4, 5], // Default weekdays
-    notificationTypes: ['notification'] as ('notification' | 'sound' | 'vibration')[],
-    color: MEDICATION_COLORS[0],
-    notes: '',
+    name: medication?.name || '',
+    dosage: medication?.dosage || '',
+    reminderTime: medication?.reminderTime || '',
+    reminderDays: medication?.reminderDays || [1, 2, 3, 4, 5], // Default weekdays
+    notificationTypes: medication?.notificationTypes || ['notification'] as ('notification' | 'sound' | 'vibration')[],
+    color: medication?.color || MEDICATION_COLORS[0],
+    notes: medication?.notes || '',
   });
 
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [selectedTime, setSelectedTime] = useState(new Date());
+  const [selectedTime, setSelectedTime] = useState(() => {
+    if (medication?.reminderTime) {
+      const [hours, minutes] = medication.reminderTime.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return date;
+    }
+    return new Date();
+  });
   const [loading, setLoading] = useState(false);
   
   // Animated values for collapsible header
@@ -121,38 +133,39 @@ const AddMedicationScreen: React.FC = () => {
     setLoading(true);
     try {
       const now = new Date();
-      const newMedication: Medication = {
-        id: Database.generateId(),
+      const medicationData: Medication = {
+        id: medication?.id || Database.generateId(),
         name: formData.name.trim(),
         dosage: formData.dosage.trim(),
         reminderTime: formData.reminderTime,
         reminderDays: formData.reminderDays,
         notificationTypes: formData.notificationTypes,
-        isActive: true,
+        isActive: medication?.isActive ?? true,
         color: formData.color,
-        icon: 'pill',
+        icon: medication?.icon || 'pill',
         notes: formData.notes.trim(),
-        createdAt: now,
+        createdAt: medication?.createdAt || now,
         updatedAt: now,
       };
 
-      await Database.saveMedication(newMedication);
+      await Database.saveMedication(medicationData);
       
       // Request notification permission and schedule reminders
-      flipperLog.info('Requesting notification permission for new medication', { 
-        medicationName: newMedication.name 
+      flipperLog.info(`${isEditing ? 'Updating' : 'Creating'} medication`, { 
+        medicationName: medicationData.name,
+        isEditing
       });
       
       const hasPermission = await requestNotificationPermission();
       flipperLog.info('Permission result', { hasPermission });
       
-      if (hasPermission) {
+      if (hasPermission && medicationData.isActive) {
         flipperLog.info('Scheduling reminders for medication', { 
-          medicationId: newMedication.id,
-          reminderDays: newMedication.reminderDays,
-          reminderTime: newMedication.reminderTime
+          medicationId: medicationData.id,
+          reminderDays: medicationData.reminderDays,
+          reminderTime: medicationData.reminderTime
         });
-        scheduleWeeklyReminders(newMedication);
+        scheduleWeeklyReminders(medicationData);
       } else {
         flipperLog.warn('Notification permission denied, showing alert');
         Alert.alert(
@@ -173,7 +186,7 @@ const AddMedicationScreen: React.FC = () => {
         );
       }
       
-      Alert.alert('Success', 'Medication added successfully!', [
+      Alert.alert('Success', `Medication ${isEditing ? 'updated' : 'added'} successfully!`, [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
@@ -195,8 +208,8 @@ const AddMedicationScreen: React.FC = () => {
             <Icon name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Add Medication</Text>
-            <Text style={styles.headerSubtitle}>Create a new reminder</Text>
+            <Text style={styles.headerTitle}>{isEditing ? 'Edit Medication' : 'Add Medication'}</Text>
+            <Text style={styles.headerSubtitle}>{isEditing ? 'Update your reminder' : 'Create a new reminder'}</Text>
           </View>
           <View style={styles.headerSpacer} />
         </View>
@@ -379,7 +392,7 @@ const AddMedicationScreen: React.FC = () => {
           >
             <Icon name="save" size={24} color="white" />
             <Text style={styles.submitButtonText}>
-              {loading ? 'Saving...' : 'Save Medication'}
+              {loading ? 'Saving...' : (isEditing ? 'Update Medication' : 'Save Medication')}
             </Text>
           </LinearGradient>
         </TouchableOpacity>
