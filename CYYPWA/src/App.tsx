@@ -74,7 +74,7 @@ function App() {
     const currentDay = now.getDay();
     
     const allMedications = await db.medications.toArray();
-    const activeMedications = allMedications.filter(med => med.isActive);
+    const activeMedications = allMedications.filter((med: Medication) => med.isActive);
     
     for (const med of activeMedications) {
       if (med.reminderTime === currentTime && med.reminderDays.includes(currentDay)) {
