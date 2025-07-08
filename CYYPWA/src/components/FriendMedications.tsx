@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import type { FC } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { Medication } from '../db/database';
 import { motion } from 'framer-motion';
@@ -11,7 +13,7 @@ interface Props {
   friendId: string;
 }
 
-const FriendMedications: React.FC<Props> = ({ friendId }) => {
+const FriendMedications: FC<Props> = ({ friendId }) => {
   const [meds, setMeds] = useState<Medication[]>([]);
   const uid = useAuthUid();
 

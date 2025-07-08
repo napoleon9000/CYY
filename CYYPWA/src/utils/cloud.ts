@@ -9,12 +9,18 @@ import {
   where,
   updateDoc,
   getDocs,
+} from 'firebase/firestore';
+import { Medication } from '../db/database';
+
+import type {
   DocumentReference,
   DocumentData,
   QuerySnapshot,
   DocumentChange,
+  Query,
+  CollectionReference,
+  QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { Medication } from '../db/database';
 
 export const addFriend = async (uid: string, friendId: string) => {
   if (uid === friendId) return;
@@ -24,7 +30,7 @@ export const addFriend = async (uid: string, friendId: string) => {
 
 export const getFriends = async (uid: string): Promise<string[]> => {
   const snapshot = await getDocs(collection(firestore, 'users', uid, 'friends'));
-  return snapshot.docs.map((d) => d.id as string);
+  return snapshot.docs.map((d: QueryDocumentSnapshot<DocumentData>) => d.id as string);
 };
 
 export const pushMedicationToCloud = async (uid: string, medication: Medication) => {
