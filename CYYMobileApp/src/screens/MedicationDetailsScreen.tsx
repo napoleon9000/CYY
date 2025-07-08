@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
 import { Database } from '../utils/database';
+import { PhotoThumbnail } from '../components/PhotoThumbnail';
+import { PhotoViewerModal } from '../components/PhotoViewerModal';
 import { Medication, MedicationLog } from '../types/medication';
 import { RootStackParamList } from '../types/navigation';
 import { formatTime } from '../utils/timeUtils';
@@ -16,13 +18,17 @@ const screenWidth = Dimensions.get('window').width;
 type MedicationDetailsScreenRouteProp = RouteProp<RootStackParamList, 'MedicationDetails'>;
 
 const MedicationDetailsScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<MedicationDetailsScreenRouteProp>();
   const { medicationId } = route.params;
 
   const [medication, setMedication] = useState<Medication | null>(null);
   const [logs, setLogs] = useState<MedicationLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
+  const [selectedPhotoUri, setSelectedPhotoUri] = useState<string>('');
+  const [selectedPhotoMedication, setSelectedPhotoMedication] = useState<string>('');
+  const [selectedPhotoTakenAt, setSelectedPhotoTakenAt] = useState<Date | undefined>();
   const [stats, setStats] = useState({
     totalRecords: 0,
     takenCount: 0,
@@ -103,7 +109,7 @@ const MedicationDetailsScreen: React.FC = () => {
 
   const editMedication = () => {
     if (medication) {
-      navigation.navigate('AddMedication' as never, { medication } as never);
+      navigation.navigate('AddMedication', { medication });
     }
   };
 
@@ -130,6 +136,20 @@ const MedicationDetailsScreen: React.FC = () => {
         }
       ]
     );
+  };
+
+  const handlePhotoThumbnailPress = (photoUri: string, medicationName: string, photoTakenAt?: Date) => {
+    setSelectedPhotoUri(photoUri);
+    setSelectedPhotoMedication(medicationName);
+    setSelectedPhotoTakenAt(photoTakenAt);
+    setPhotoViewerVisible(true);
+  };
+
+  const handlePhotoViewerClose = () => {
+    setPhotoViewerVisible(false);
+    setSelectedPhotoUri('');
+    setSelectedPhotoMedication('');
+    setSelectedPhotoTakenAt(undefined);
   };
 
   const renderTimeDistributionChart = () => {
@@ -364,9 +384,18 @@ const MedicationDetailsScreen: React.FC = () => {
                     }]}>
                       {log.status === 'taken' ? 'Taken' : 'Skipped'}
                     </Text>
-                    <Text style={styles.logDate}>
-                      {new Date(log.scheduledTime).toLocaleDateString()}
-                    </Text>
+                    <View style={styles.logHeaderRight}>
+                      {log.photoUri && (
+                        <PhotoThumbnail
+                          photoUri={log.photoUri}
+                          size={28}
+                          onPress={() => handlePhotoThumbnailPress(log.photoUri!, medication?.name || '', log.actualTime ? new Date(log.actualTime) : undefined)}
+                        />
+                      )}
+                      <Text style={styles.logDate}>
+                        {new Date(log.scheduledTime).toLocaleDateString()}
+                      </Text>
+                    </View>
                   </View>
                   {log.actualTime && (
                     <Text style={styles.logTime}>
@@ -387,6 +416,15 @@ const MedicationDetailsScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+      
+      {/* Photo Viewer Modal */}
+      <PhotoViewerModal
+        visible={photoViewerVisible}
+        photoUri={selectedPhotoUri}
+        medicationName={selectedPhotoMedication}
+        photoTakenAt={selectedPhotoTakenAt}
+        onClose={handlePhotoViewerClose}
+      />
     </View>
   );
 };
@@ -664,6 +702,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
     flex: 1,
+  },
+  logHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   logDate: {
     fontSize: 14,

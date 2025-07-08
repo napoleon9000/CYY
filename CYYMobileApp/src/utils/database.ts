@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Medication, MedicationLog, AppSettings } from '../types';
+import { Medication, MedicationLog, AppSettings, RetryNotification } from '../types';
 import { flipperLog, flipperPerformance } from './flipper';
 import { DEFAULT_APP_SETTINGS } from './constants';
 
@@ -7,6 +7,7 @@ const KEYS = {
   MEDICATIONS: '@medications',
   MEDICATION_LOGS: '@medication_logs',
   SETTINGS: '@settings',
+  RETRY_NOTIFICATIONS: '@retry_notifications',
 };
 
 // Database utility functions
@@ -16,7 +17,24 @@ export class Database {
     const perf = flipperPerformance.start('getMedications');
     try {
       const data = await AsyncStorage.getItem(KEYS.MEDICATIONS);
-      const medications = data ? JSON.parse(data) : [];
+      let medications = data ? JSON.parse(data) : [];
+      
+      // Data migration: Add retryCount field to existing medications
+      let needsUpdate = false;
+      medications = medications.map((med: any) => {
+        if (med.retryCount === undefined) {
+          needsUpdate = true;
+          return { ...med, retryCount: 0 };
+        }
+        return med;
+      });
+      
+      // Save updated medications if migration was needed
+      if (needsUpdate) {
+        await AsyncStorage.setItem(KEYS.MEDICATIONS, JSON.stringify(medications));
+        flipperLog.database('MIGRATE', 'medications', { count: medications.length, addedRetryCount: true });
+      }
+      
       flipperLog.database('GET', 'medications', { count: medications.length });
       perf.end();
       return medications;
@@ -166,10 +184,75 @@ export class Database {
         KEYS.MEDICATIONS,
         KEYS.MEDICATION_LOGS,
         KEYS.SETTINGS,
+        KEYS.RETRY_NOTIFICATIONS,
       ]);
     } catch (error) {
       console.error('Error clearing all data:', error);
       throw error;
+    }
+  }
+
+  // Retry Notifications
+  static async getRetryNotifications(): Promise<RetryNotification[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.RETRY_NOTIFICATIONS);
+      return data ? JSON.parse(data).map((notification: any) => ({
+        ...notification,
+        originalNotificationTime: new Date(notification.originalNotificationTime),
+        nextRetryTime: new Date(notification.nextRetryTime),
+        createdAt: new Date(notification.createdAt),
+      })) : [];
+    } catch (error) {
+      console.error('Error getting retry notifications:', error);
+      return [];
+    }
+  }
+
+  static async saveRetryNotification(notification: RetryNotification): Promise<void> {
+    try {
+      const notifications = await this.getRetryNotifications();
+      const existingIndex = notifications.findIndex(n => n.id === notification.id);
+      
+      if (existingIndex >= 0) {
+        notifications[existingIndex] = notification;
+      } else {
+        notifications.push(notification);
+      }
+      
+      await AsyncStorage.setItem(KEYS.RETRY_NOTIFICATIONS, JSON.stringify(notifications));
+      flipperLog.database('CREATE', 'retry_notifications', { id: notification.id, medicationId: notification.medicationId });
+    } catch (error) {
+      console.error('Error saving retry notification:', error);
+      throw error;
+    }
+  }
+
+  static async cancelRetryNotifications(medicationId: string, originalNotificationTime: Date): Promise<void> {
+    try {
+      const notifications = await this.getRetryNotifications();
+      const updatedNotifications = notifications.map(notification => {
+        if (notification.medicationId === medicationId && 
+            notification.originalNotificationTime.getTime() === originalNotificationTime.getTime()) {
+          return { ...notification, isActive: false };
+        }
+        return notification;
+      });
+      
+      await AsyncStorage.setItem(KEYS.RETRY_NOTIFICATIONS, JSON.stringify(updatedNotifications));
+      flipperLog.database('UPDATE', 'retry_notifications', { medicationId, originalTime: originalNotificationTime.toISOString() });
+    } catch (error) {
+      console.error('Error canceling retry notifications:', error);
+      throw error;
+    }
+  }
+
+  static async getActiveRetryNotifications(): Promise<RetryNotification[]> {
+    try {
+      const notifications = await this.getRetryNotifications();
+      return notifications.filter(n => n.isActive);
+    } catch (error) {
+      console.error('Error getting active retry notifications:', error);
+      return [];
     }
   }
 

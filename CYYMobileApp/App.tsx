@@ -1,9 +1,10 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 // Initialize notification system
 import './src/utils/notifications';
@@ -21,7 +22,7 @@ import { TAB_COLORS } from './src/constants/colors';
 // Types
 import { BottomTabParamList, RootStackParamList, TAB_ICONS } from './src/types';
 
-const Tab = createNativeBottomTabNavigator<BottomTabParamList>();
+const Tab = createBottomTabNavigator<BottomTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const TabNavigator = () => {
@@ -46,7 +47,9 @@ const TabNavigator = () => {
         component={HomeScreen}
         options={{
           title: 'Home',
-          tabBarIcon: () => ({ sfSymbol: TAB_ICONS.HOME }),
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="home" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen 
@@ -54,7 +57,9 @@ const TabNavigator = () => {
         component={AddMedicationScreen}
         options={{
           title: 'Add',
-          tabBarIcon: () => ({ sfSymbol: TAB_ICONS.ADD }),
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="add-circle" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen 
@@ -62,7 +67,9 @@ const TabNavigator = () => {
         component={TrackScreen}
         options={{
           title: 'Track',
-          tabBarIcon: () => ({ sfSymbol: TAB_ICONS.TRACK }),
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="check-circle" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen 
@@ -70,7 +77,9 @@ const TabNavigator = () => {
         component={SettingsScreen}
         options={{
           title: 'Settings',
-          tabBarIcon: () => ({ sfSymbol: TAB_ICONS.SETTINGS }),
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="settings" size={size} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>

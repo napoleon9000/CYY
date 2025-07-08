@@ -28,6 +28,7 @@ export interface Medication {
   color: string;
   icon: string;
   notes?: string;
+  retryCount: number; // Number of retry notifications (0-99)
 }
 
 /**
@@ -56,6 +57,7 @@ export interface MedicationFormData {
   color: string;
   icon: string;
   notes: string;
+  retryCount: number;
 }
 
 /**
@@ -88,4 +90,30 @@ export interface MedicationStats {
   complianceRate: number;
   currentStreak: number;
   longestStreak: number;
+}
+
+/**
+ * Retry notification tracking interface
+ */
+export interface RetryNotification {
+  id: string;
+  medicationId: string;
+  originalNotificationTime: Date;
+  currentRetryCount: number;
+  maxRetryCount: number;
+  nextRetryTime: Date;
+  createdAt: Date;
+  isActive: boolean;
+}
+
+/**
+ * App settings interface
+ */
+export interface AppSettings {
+  notificationsEnabled: boolean;
+  soundEnabled: boolean;
+  vibrationEnabled: boolean;
+  reminderSnoozeMinutes: number;
+  darkMode: boolean;
+  reminderPersistence: boolean;
 }

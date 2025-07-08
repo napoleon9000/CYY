@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>method</key>
-	<string>app-store</string>
+	<string>app-store-connect</string>
 	<key>uploadBitcode</key>
 	<false/>
 	<key>uploadSymbols</key>
@@ -11,16 +11,11 @@
 	<key>compileBitcode</key>
 	<false/>
 	<key>teamID</key>
-	<string>YOUR_TEAM_ID</string>
+	<string>1694691685</string>
 	<key>signingStyle</key>
 	<string>automatic</string>
 	<key>signingCertificate</key>
 	<string>iPhone Distribution</string>
-	<key>provisioningProfiles</key>
-	<dict>
-		<key>com.yourcompany.cyymobileapp</key>
-		<string>YOUR_PROVISIONING_PROFILE_NAME</string>
-	</dict>
 	<key>destination</key>
 	<string>upload</string>
 </dict>

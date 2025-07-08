@@ -10,18 +10,24 @@ import { formatDateForDisplay } from '../utils/dateUtils';
 import { GRADIENTS } from '../constants/colors';
 import { SPACING, BORDER_RADIUS, SHADOWS, PERFORMANCE, ANIMATION_DURATIONS, SWIPE_THRESHOLDS } from '../utils/constants';
 import CollapsibleHeader from '../components/CollapsibleHeader';
+import { CameraModal } from '../components/CameraModal';
+import { PhotoThumbnail } from '../components/PhotoThumbnail';
+import { PhotoViewerModal } from '../components/PhotoViewerModal';
+import { notificationStateManager, NotificationCameraRequest } from '../utils/notificationState';
 import { Medication, MedicationLog, UpcomingMedication, GroupedMedicationLogs } from '../types';
 
 interface SwipeableLogItemProps {
   log: MedicationLog;
   medication: Medication;
   onDelete: (logId: string, medicationName: string) => void;
+  onPhotoPress?: (photoUri: string, medicationName: string, photoTakenAt?: Date) => void;
 }
 
-const SwipeableLogItem: React.FC<SwipeableLogItemProps> = ({ log, medication, onDelete }) => {
+const SwipeableLogItem: React.FC<SwipeableLogItemProps> = ({ log, medication, onDelete, onPhotoPress }) => {
   const translateX = useRef(new Animated.Value(0)).current;
-  const screenWidth = Dimensions.get('window').width;
-  const deleteThreshold = SWIPE_THRESHOLDS.DELETE;
+  const [isDeleteVisible, setIsDeleteVisible] = useState(false);
+  const deleteButtonWidth = 80;
+  const swipeThreshold = 60; // Minimum swipe distance to show delete button
 
   const panResponder = useRef(
     PanResponder.create({
@@ -32,21 +38,21 @@ const SwipeableLogItem: React.FC<SwipeableLogItemProps> = ({ log, medication, on
       onPanResponderMove: (_, gestureState) => {
         // Only allow left swipe (negative dx)
         if (gestureState.dx < 0) {
-          translateX.setValue(Math.max(gestureState.dx, deleteThreshold * 2));
+          const clampedValue = Math.max(gestureState.dx, -deleteButtonWidth);
+          translateX.setValue(clampedValue);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < deleteThreshold) {
-          // Trigger delete
-          Animated.timing(translateX, {
-            toValue: -screenWidth,
-            duration: ANIMATION_DURATIONS.NORMAL,
+        if (gestureState.dx < -swipeThreshold) {
+          // Show delete button
+          setIsDeleteVisible(true);
+          Animated.spring(translateX, {
+            toValue: -deleteButtonWidth,
             useNativeDriver: true,
-          }).start(() => {
-            onDelete(log.id, medication.name);
-          });
+          }).start();
         } else {
-          // Snap back
+          // Snap back to closed position
+          setIsDeleteVisible(false);
           Animated.spring(translateX, {
             toValue: 0,
             useNativeDriver: true,
@@ -56,13 +62,40 @@ const SwipeableLogItem: React.FC<SwipeableLogItemProps> = ({ log, medication, on
     })
   ).current;
 
+  const handleDeletePress = () => {
+    // Animate out before deleting
+    Animated.timing(translateX, {
+      toValue: -400,
+      duration: ANIMATION_DURATIONS.QUICK,
+      useNativeDriver: true,
+    }).start(() => {
+      onDelete(log.id, medication.name);
+    });
+  };
+
+  const handleMainPress = () => {
+    if (isDeleteVisible) {
+      // Close delete button if it's visible
+      setIsDeleteVisible(false);
+      Animated.spring(translateX, {
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
   return (
     <View style={styles.swipeableContainer}>
-      {/* Delete background */}
-      <View style={styles.deleteBackground}>
-        <Icon name="delete" size={24} color="white" />
-        <Text style={styles.deleteBackgroundText}>Delete</Text>
-      </View>
+      {/* Delete button */}
+      {isDeleteVisible && (
+        <TouchableOpacity 
+          style={styles.deleteButton}
+          onPress={handleDeletePress}
+          activeOpacity={0.7}
+        >
+          <Icon name="delete" size={24} color="white" />
+        </TouchableOpacity>
+      )}
       
       {/* Main log item */}
       <Animated.View
@@ -74,6 +107,11 @@ const SwipeableLogItem: React.FC<SwipeableLogItemProps> = ({ log, medication, on
         ]}
         {...panResponder.panHandlers}
       >
+        <TouchableOpacity 
+          style={styles.logItemContent}
+          onPress={handleMainPress}
+          activeOpacity={1}
+        >
         <View style={styles.logIcon}>
           <Icon 
             name={log.status === 'taken' ? 'check-circle' : 'cancel'} 
@@ -98,13 +136,22 @@ const SwipeableLogItem: React.FC<SwipeableLogItemProps> = ({ log, medication, on
           )}
         </View>
         <View style={styles.logStatus}>
+          {log.photoUri && onPhotoPress && (
+            <PhotoThumbnail
+              photoUri={log.photoUri}
+              size={32}
+              onPress={() => onPhotoPress(log.photoUri!, medication.name, log.actualTime)}
+            />
+          )}
           <Text style={[
             styles.logStatusText,
-            { color: log.status === 'taken' ? '#4CAF50' : '#FF6B6B' }
+            { color: log.status === 'taken' ? '#4CAF50' : '#FF6B6B' },
+            log.photoUri ? { marginLeft: 8 } : {}
           ]}>
             {log.status === 'taken' ? 'Taken' : 'Skipped'}
           </Text>
         </View>
+        </TouchableOpacity>
       </Animated.View>
     </View>
   );
@@ -125,6 +172,12 @@ const TrackScreen: React.FC = () => {
     complianceRate: 0,
     currentStreak: 0,
   });
+  const [cameraModalVisible, setCameraModalVisible] = useState(false);
+  const [selectedMedication, setSelectedMedication] = useState<Medication | null>(null);
+  const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
+  const [selectedPhotoUri, setSelectedPhotoUri] = useState<string>('');
+  const [selectedPhotoMedication, setSelectedPhotoMedication] = useState<string>('');
+  const [selectedPhotoTakenAt, setSelectedPhotoTakenAt] = useState<Date | undefined>(undefined);
   
   // Animated values for collapsible header
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -135,6 +188,26 @@ const TrackScreen: React.FC = () => {
       loadData();
     }, [])
   );
+
+  // Listen for camera requests from notifications
+  React.useEffect(() => {
+    const handleNotificationCameraRequest = (request: NotificationCameraRequest) => {
+      flipperLog.info('Camera requested from notification', {
+        medicationId: request.medication.id,
+        medicationName: request.medication.name,
+      });
+
+      // Set the medication and open camera modal
+      setSelectedMedication(request.medication);
+      setCameraModalVisible(true);
+    };
+
+    notificationStateManager.onCameraRequest(handleNotificationCameraRequest);
+
+    return () => {
+      notificationStateManager.removeCameraRequestListener(handleNotificationCameraRequest);
+    };
+  }, []);
 
   const loadData = async (isRefreshing = false) => {
     try {
@@ -386,8 +459,13 @@ const TrackScreen: React.FC = () => {
         // Delete the existing log to undo the action
         await Database.deleteMedicationLog(upcomingMed.logId);
         flipperLog.database('DELETE', 'medication_log', { logId: upcomingMed.logId });
+      } else if (action === 'photo') {
+        // Open camera modal for photo capture without saving log yet
+        setSelectedMedication(upcomingMed.medication);
+        setCameraModalVisible(true);
+        return; // Don't proceed further, wait for photo capture
       } else {
-        // Create new log entry
+        // Create new log entry for taken or skipped actions
         const [scheduledHours, scheduledMinutes] = upcomingMed.medication.reminderTime.split(':').map(Number);
         const scheduledTime = new Date(upcomingMed.nextDose);
         scheduledTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
@@ -396,19 +474,12 @@ const TrackScreen: React.FC = () => {
           id: Database.generateId(),
           medicationId: upcomingMed.medication.id,
           scheduledTime: scheduledTime, // Original scheduled time
-          actualTime: (action === 'taken' || action === 'photo') ? now : undefined, // Actual time when taken
-          status: action === 'photo' ? 'taken' : (action === 'undo' ? 'pending' : action),
-          photoUri: action === 'photo' ? 'photo_taken' : undefined, // Placeholder for photo functionality
+          actualTime: action === 'taken' ? now : undefined, // Actual time when taken
+          status: action as 'taken' | 'skipped',
           createdAt: now,
         };
 
         await Database.saveMedicationLog(log);
-        
-        if (action === 'photo') {
-          // TODO: Implement camera functionality
-          Alert.alert('Photo Feature', 'Camera integration will be implemented in a future update.');
-        }
-        
         flipperLog.database('CREATE', 'medication_log', { logId: log.id, action });
       }
       
@@ -420,6 +491,88 @@ const TrackScreen: React.FC = () => {
       console.error('Error logging medication action:', error);
       Alert.alert('Error', 'Failed to log medication. Please try again.');
     }
+  };
+
+  const handlePhotoCapture = async (photoUri: string) => {
+    if (!selectedMedication) {
+      Alert.alert('Error', 'No medication selected for photo capture');
+      return;
+    }
+
+    try {
+      const now = new Date();
+      let scheduledTime = now; // Default to current time
+      
+      // Try to find the medication in upcoming medications list
+      const upcomingMed = upcomingMedications.find(m => m.medication.id === selectedMedication.id);
+      
+      if (upcomingMed) {
+        // Use the scheduled time from upcoming medications
+        const [scheduledHours, scheduledMinutes] = selectedMedication.reminderTime.split(':').map(Number);
+        scheduledTime = new Date(upcomingMed.nextDose);
+        scheduledTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+      } else {
+        // For notification-triggered photos, use today's scheduled time
+        const [scheduledHours, scheduledMinutes] = selectedMedication.reminderTime.split(':').map(Number);
+        scheduledTime = new Date();
+        scheduledTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+        
+        // If the scheduled time was in the past today, it was from today's notification
+        if (scheduledTime > now) {
+          scheduledTime.setDate(scheduledTime.getDate() - 1); // Yesterday's notification
+        }
+      }
+      
+      const log: MedicationLog = {
+        id: Database.generateId(),
+        medicationId: selectedMedication.id,
+        scheduledTime: scheduledTime,
+        actualTime: now,
+        status: 'taken',
+        photoUri: photoUri,
+        notes: 'Taken with photo evidence',
+        createdAt: now,
+      };
+
+      await Database.saveMedicationLog(log);
+      flipperLog.database('CREATE', 'medication_log', { logId: log.id, action: 'photo', photoUri });
+      
+      // If this was triggered from a notification, cancel any pending retry notifications
+      if (!upcomingMed) {
+        // Import the cancel function
+        const { handleMedicationTakenOrSkipped } = require('../utils/notifications');
+        await handleMedicationTakenOrSkipped(selectedMedication.id, scheduledTime);
+      }
+      
+      // Reload data to update the UI
+      loadData();
+      
+      // Show success message
+      Alert.alert('Success', `${selectedMedication.name} has been recorded with photo evidence.`);
+    } catch (error) {
+      flipperLog.error('Error saving medication log with photo', error);
+      console.error('Error saving medication log with photo:', error);
+      Alert.alert('Error', 'Failed to save medication with photo. Please try again.');
+    }
+  };
+
+  const handleCameraModalClose = () => {
+    setCameraModalVisible(false);
+    setSelectedMedication(null);
+  };
+
+  const handlePhotoThumbnailPress = (photoUri: string, medicationName: string, photoTakenAt?: Date) => {
+    setSelectedPhotoUri(photoUri);
+    setSelectedPhotoMedication(medicationName);
+    setSelectedPhotoTakenAt(photoTakenAt);
+    setPhotoViewerVisible(true);
+  };
+
+  const handlePhotoViewerClose = () => {
+    setPhotoViewerVisible(false);
+    setSelectedPhotoUri('');
+    setSelectedPhotoMedication('');
+    setSelectedPhotoTakenAt(undefined);
   };
 
   const deleteHistoryItem = async (logId: string, medicationName: string) => {
@@ -721,6 +874,7 @@ const TrackScreen: React.FC = () => {
                             log={log}
                             medication={medication}
                             onDelete={deleteHistoryItem}
+                            onPhotoPress={handlePhotoThumbnailPress}
                           />
                         );
                       })}
@@ -731,6 +885,23 @@ const TrackScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+      
+      {/* Camera Modal */}
+      <CameraModal
+        visible={cameraModalVisible}
+        onClose={handleCameraModalClose}
+        onPhotoCapture={handlePhotoCapture}
+        medicationName={selectedMedication?.name || ''}
+      />
+      
+      {/* Photo Viewer Modal */}
+      <PhotoViewerModal
+        visible={photoViewerVisible}
+        photoUri={selectedPhotoUri}
+        medicationName={selectedPhotoMedication}
+        photoTakenAt={selectedPhotoTakenAt}
+        onClose={handlePhotoViewerClose}
+      />
     </View>
   );
 };
@@ -1013,6 +1184,23 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
   },
+  deleteButton: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 80,
+    backgroundColor: '#FF6B6B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
   logItemAnimated: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1055,7 +1243,9 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   logStatus: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   logStatusText: {
     fontSize: 12,

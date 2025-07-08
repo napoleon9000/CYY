@@ -25,6 +25,7 @@ const AddMedicationScreen: React.FC = () => {
     notificationTypes: medication?.notificationTypes || ['notification'] as ('notification' | 'sound' | 'vibration')[],
     color: medication?.color || MEDICATION_COLORS[0],
     notes: medication?.notes || '',
+    retryCount: medication?.retryCount || 0,
   });
 
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -144,6 +145,7 @@ const AddMedicationScreen: React.FC = () => {
         color: formData.color,
         icon: medication?.icon || 'pill',
         notes: formData.notes.trim(),
+        retryCount: formData.retryCount,
         createdAt: medication?.createdAt || now,
         updatedAt: now,
       };
@@ -251,6 +253,29 @@ const AddMedicationScreen: React.FC = () => {
               onChangeText={(text) => setFormData(prev => ({ ...prev, dosage: text }))}
             />
           </View>
+        </View>
+
+        {/* Retry Count */}
+        <View style={styles.inputSection}>
+          <Text style={styles.label}>Retry Notifications</Text>
+          <View style={styles.inputContainer}>
+            <Icon name="refresh" size={20} color="#666" style={styles.inputIcon} />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Number of retries (0-99)"
+              value={formData.retryCount.toString()}
+              onChangeText={(text) => {
+                const count = parseInt(text) || 0;
+                const validCount = Math.max(0, Math.min(99, count));
+                setFormData(prev => ({ ...prev, retryCount: validCount }));
+              }}
+              keyboardType="numeric"
+              maxLength={2}
+            />
+          </View>
+          <Text style={styles.helperText}>
+            Send additional notifications every 10 minutes if ignored (0 = no retries)
+          </Text>
         </View>
 
         {/* Reminder Time */}
@@ -603,6 +628,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
     marginLeft: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    marginHorizontal: 32,
+    lineHeight: 16,
   },
 });
 

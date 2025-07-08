@@ -1,9 +1,10 @@
 import PushNotification from 'react-native-push-notification';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { Medication, MedicationLog } from '../types';
+import { Medication, MedicationLog, RetryNotification } from '../types';
 import { Database } from './database';
 import { flipperLog } from './flipper';
+import { notificationStateManager } from './notificationState';
 
 // Configure notifications
 PushNotification.configure({
@@ -99,15 +100,6 @@ if (Platform.OS === 'ios') {
           {
             id: 'TAKEN',
             title: 'Taken',
-            options: {
-              foreground: false,
-              authenticationRequired: false,
-              destructive: false,
-            },
-          },
-          {
-            id: 'SNOOZE',
-            title: 'Snooze 5min',
             options: {
               foreground: false,
               authenticationRequired: false,
@@ -245,6 +237,10 @@ const handleNotificationAction = async (notification: any) => {
     console.log(`✅ MEDICATION FOUND: ${medication.name}`);
     const now = new Date();
     const logId = Database.generateId();
+    
+    // Get original notification time from userInfo
+    const originalTimeStr = userInfo?.originalTime;
+    const originalTime = originalTimeStr ? new Date(originalTimeStr) : now;
 
     switch (action) {
       case 'TAKEN':
@@ -252,84 +248,56 @@ const handleNotificationAction = async (notification: any) => {
         await Database.saveMedicationLog({
           id: logId,
           medicationId,
-          scheduledTime: now,
+          scheduledTime: originalTime,
           actualTime: now,
           status: 'taken',
           notes: 'Marked as taken from notification',
           createdAt: now,
         });
+        
+        // Cancel any pending retry notifications
+        await handleMedicationTakenOrSkipped(medicationId, originalTime);
+        
         flipperLog.notification('MARKED_TAKEN', { medicationId, logId });
         console.log('✅ TAKEN ACTION COMPLETED');
         showImmediateNotification('✅ Medication Taken', `${medication.name} has been marked as taken.`);
         break;
 
-      case 'SNOOZE':
-        console.log('🔧 PROCESSING SNOOZE ACTION');
-        // Create a simple snooze notification in 5 minutes
-        const snoozeTime = new Date(now.getTime() + 5 * 60 * 1000);
-        const snoozeNotificationId = `snooze_${medication.id}_${snoozeTime.getTime()}`;
-        
-        const snoozeConfig: any = {
-          id: snoozeNotificationId,
-          title: `⏰ Snooze Reminder: ${medication.name}`,
-          message: `Time to take your ${medication.dosage} of ${medication.name}`,
-          date: snoozeTime,
-          userInfo: {
-            medicationId: medication.id,
-            notificationId: snoozeNotificationId,
-            isSnooze: true,
-          },
-        };
-
-        // Add actions to the snoozed notification
-        if (Platform.OS === 'ios') {
-          snoozeConfig.category = 'MEDICATION_ACTIONS';
-        } else {
-          snoozeConfig.channelId = 'medication-reminders';
-          snoozeConfig.actions = ['TAKEN', 'SNOOZE', 'SKIP', 'TAKEN_PHOTO'];
-        }
-
-        PushNotification.localNotificationSchedule(snoozeConfig);
-        flipperLog.notification('SNOOZED', { medicationId, snoozeTime });
-        console.log('✅ SNOOZE ACTION COMPLETED');
-        showImmediateNotification('⏰ Medication Snoozed', `${medication.name} reminder set for 5 minutes.`);
-        break;
 
       case 'SKIP':
         console.log('🔧 PROCESSING SKIP ACTION');
         await Database.saveMedicationLog({
           id: logId,
           medicationId,
-          scheduledTime: now,
+          scheduledTime: originalTime,
           actualTime: now,
           status: 'skipped',
           notes: 'Skipped from notification',
           createdAt: now,
         });
+        
+        // Cancel any pending retry notifications
+        await handleMedicationTakenOrSkipped(medicationId, originalTime);
+        
         flipperLog.notification('MARKED_SKIPPED', { medicationId, logId });
         console.log('✅ SKIP ACTION COMPLETED');
         showImmediateNotification('❌ Medication Skipped', `${medication.name} has been skipped.`);
         break;
 
       case 'TAKEN_PHOTO':
-        console.log('🔧 PROCESSING TAKEN_PHOTO ACTION');
-        await Database.saveMedicationLog({
-          id: logId,
-          medicationId,
-          scheduledTime: now,
-          actualTime: now,
-          status: 'taken',
-          notes: 'Taken with photo from notification',
-          createdAt: now,
-        });
-        flipperLog.notification('MARKED_TAKEN_WITH_PHOTO', { medicationId, logId });
-        console.log('✅ TAKEN_PHOTO ACTION COMPLETED');
-        showImmediateNotification('📷 Medication Taken', `${medication.name} marked as taken. Open app to add photo.`);
+        console.log('🔧 PROCESSING TAKEN_PHOTO ACTION - REQUESTING CAMERA');
+        
+        // Request camera from the app instead of logging immediately
+        notificationStateManager.requestCameraFromNotification(medication, originalTime);
+        
+        flipperLog.notification('CAMERA_REQUESTED_FROM_NOTIFICATION', { medicationId });
+        console.log('✅ TAKEN_PHOTO ACTION COMPLETED - CAMERA REQUESTED');
+        showImmediateNotification('📷 Camera Opening', `Opening camera for ${medication.name}. Please take a photo to confirm.`);
         break;
 
       default:
         console.log(`❌ ERROR: Unknown action: ${action}`);
-        flipperLog.error('Unknown notification action', { action, availableActions: ['TAKEN', 'SNOOZE', 'SKIP', 'TAKEN_PHOTO'] });
+        flipperLog.error('Unknown notification action', { action, availableActions: ['TAKEN', 'SKIP', 'TAKEN_PHOTO'] });
         showImmediateNotification('Error', `Unknown action: ${action}`);
         break;
     }
@@ -438,7 +406,7 @@ export const scheduleNotification = (medication: Medication, notificationTime: D
   } else {
     // Android specific configuration
     notificationConfig.channelId = 'medication-reminders';
-    notificationConfig.actions = ['TAKEN', 'SNOOZE', 'SKIP', 'TAKEN_PHOTO'];
+    notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
   }
 
   PushNotification.localNotificationSchedule(notificationConfig);
@@ -452,7 +420,7 @@ export const cancelAllNotifications = () => {
   PushNotification.cancelAllLocalNotifications();
 };
 
-export const scheduleWeeklyReminders = (medication: Medication) => {
+export const scheduleWeeklyReminders = async (medication: Medication) => {
   // Cancel existing notifications for this medication
   PushNotification.getScheduledLocalNotifications((notifications) => {
     notifications.forEach((notification) => {
@@ -469,7 +437,7 @@ export const scheduleWeeklyReminders = (medication: Medication) => {
 
   const [hours, minutes] = medication.reminderTime.split(':').map(Number);
   
-  medication.reminderDays.forEach((dayOfWeek) => {
+  for (const dayOfWeek of medication.reminderDays) {
     const now = new Date();
     const notificationDate = new Date();
     
@@ -483,8 +451,9 @@ export const scheduleWeeklyReminders = (medication: Medication) => {
       notificationDate.setDate(notificationDate.getDate() + 7);
     }
     
-    scheduleNotification(medication, notificationDate);
-  });
+    // Use the new function that includes retry logic
+    await scheduleNotificationWithRetry(medication, notificationDate);
+  }
 };
 
 export const playNotificationSound = () => {
@@ -566,7 +535,7 @@ export const sendDelayedTestNotification = async (medication: Medication, delayS
       notificationConfig = {
         ...baseConfig,
         channelId: 'medication-reminders',
-        actions: ['TAKEN', 'SNOOZE', 'SKIP', 'TAKEN_PHOTO'],
+        actions: ['TAKEN', 'SKIP', 'TAKEN_PHOTO'],
       };
     }
 
@@ -612,6 +581,155 @@ export const debugNotificationStatus = async () => {
   } catch (error) {
     console.error('Failed to check notification status:', error);
     throw error;
+  }
+};
+
+// Retry notification management
+export const scheduleRetryNotification = async (medication: Medication, originalNotificationTime: Date, retryCount: number = 0) => {
+  if (retryCount >= medication.retryCount) {
+    console.log(`Max retry count reached for medication ${medication.name}`);
+    return;
+  }
+
+  const nextRetryTime = new Date(originalNotificationTime.getTime() + (retryCount + 1) * 10 * 60 * 1000); // 10 minutes interval
+  const retryNotificationId = `retry_${medication.id}_${originalNotificationTime.getTime()}_${retryCount + 1}`;
+
+  const retryNotification: RetryNotification = {
+    id: retryNotificationId,
+    medicationId: medication.id,
+    originalNotificationTime,
+    currentRetryCount: retryCount + 1,
+    maxRetryCount: medication.retryCount,
+    nextRetryTime,
+    createdAt: new Date(),
+    isActive: true,
+  };
+
+  // Store retry notification in database
+  await Database.saveRetryNotification(retryNotification);
+
+  const notificationConfig: any = {
+    id: retryNotificationId,
+    title: `⏰ Reminder ${retryCount + 1}/${medication.retryCount}: ${medication.name}`,
+    message: `Please take your ${medication.dosage} of ${medication.name}`,
+    date: nextRetryTime,
+    allowWhileIdle: true,
+    userInfo: {
+      medicationId: medication.id,
+      notificationId: retryNotificationId,
+      isRetry: true,
+      retryCount: retryCount + 1,
+      originalTime: originalNotificationTime.toISOString(),
+    },
+  };
+
+  // iOS specific configuration
+  if (Platform.OS === 'ios') {
+    notificationConfig.category = 'MEDICATION_ACTIONS';
+  } else {
+    // Android specific configuration
+    notificationConfig.channelId = 'medication-reminders';
+    notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
+  }
+
+  PushNotification.localNotificationSchedule(notificationConfig);
+  
+  flipperLog.notification('RETRY_SCHEDULED', {
+    medicationId: medication.id,
+    retryCount: retryCount + 1,
+    nextRetryTime: nextRetryTime.toISOString(),
+  });
+
+  console.log(`Retry notification ${retryCount + 1} scheduled for ${medication.name} at ${nextRetryTime.toISOString()}`);
+};
+
+export const cancelRetryNotifications = async (medicationId: string, originalNotificationTime: Date) => {
+  console.log(`🔧 CANCELLING NOTIFICATIONS for medication ${medicationId}, originalTime: ${originalNotificationTime.toISOString()}`);
+  
+  // Cancel all notifications for this medication and time (both main and retry notifications)
+  PushNotification.getScheduledLocalNotifications((notifications) => {
+    console.log(`📋 Found ${notifications.length} total scheduled notifications`);
+    let cancelledCount = 0;
+    
+    notifications.forEach((notification) => {
+      const userInfo = (notification as any).userInfo;
+      const notificationId = (notification as any).id;
+      
+      console.log(`🔍 Checking notification ${notificationId}:`, {
+        medicationId: userInfo?.medicationId,
+        originalTime: userInfo?.originalTime,
+        isRetry: userInfo?.isRetry,
+        notificationTimestamp: notificationId.includes(`_${originalNotificationTime.getTime()}_`)
+      });
+      
+      // Match notifications by medicationId and either:
+      // 1. originalTime matches (for retry notifications)
+      // 2. notification ID contains the original timestamp (for main notifications)
+      const isMainNotification = notificationId === `med_${medicationId}_${originalNotificationTime.getTime()}`;
+      const isRetryNotification = userInfo?.medicationId === medicationId && 
+                                 userInfo?.originalTime === originalNotificationTime.toISOString();
+      
+      if (isMainNotification || isRetryNotification) {
+        PushNotification.cancelLocalNotification(notificationId);
+        cancelledCount++;
+        console.log(`✅ Cancelled notification: ${notificationId} (isRetry: ${userInfo?.isRetry || false}, isMain: ${isMainNotification})`);
+      }
+    });
+    
+    console.log(`🎯 Total notifications cancelled: ${cancelledCount}`);
+  });
+
+  // Mark retry notifications as inactive in database
+  await Database.cancelRetryNotifications(medicationId, originalNotificationTime);
+  
+  flipperLog.notification('ALL_NOTIFICATIONS_CANCELLED', {
+    medicationId,
+    originalTime: originalNotificationTime.toISOString(),
+  });
+};
+
+export const handleMedicationTakenOrSkipped = async (medicationId: string, originalNotificationTime: Date) => {
+  // Cancel all pending retry notifications for this medication
+  await cancelRetryNotifications(medicationId, originalNotificationTime);
+  
+  console.log(`Cancelled all retry notifications for medication ${medicationId}`);
+};
+
+// Enhanced schedule function that includes retry logic
+export const scheduleNotificationWithRetry = async (medication: Medication, notificationTime: Date) => {
+  // Schedule the main notification with original time in userInfo
+  const notificationId = `med_${medication.id}_${notificationTime.getTime()}`;
+  
+  const notificationConfig: any = {
+    id: notificationId,
+    title: `Time to take ${medication.name}!`,
+    message: `Don't forget your ${medication.dosage} of ${medication.name}`,
+    date: notificationTime,
+    allowWhileIdle: true,
+    repeatType: 'week', // Will repeat weekly
+    userInfo: {
+      medicationId: medication.id,
+      notificationId,
+      originalTime: notificationTime.toISOString(),
+    },
+  };
+
+  // iOS specific configuration
+  if (Platform.OS === 'ios') {
+    notificationConfig.category = 'MEDICATION_ACTIONS';
+  } else {
+    // Android specific configuration
+    notificationConfig.channelId = 'medication-reminders';
+    notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
+  }
+
+  PushNotification.localNotificationSchedule(notificationConfig);
+
+  // If retry count is greater than 0, schedule all retry notifications
+  if (medication.retryCount > 0) {
+    for (let i = 0; i < medication.retryCount; i++) {
+      await scheduleRetryNotification(medication, notificationTime, i);
+    }
   }
 };
 

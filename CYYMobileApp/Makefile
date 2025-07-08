@@ -43,12 +43,23 @@ help:
 	@echo "  make build-ios        Build iOS app for release"
 	@echo "  make build-android    Build Android APK"
 	@echo "  make archive-ios      Create iOS archive for App Store"
+	@echo "  make export-ios       Export iOS archive for App Store"
+	@echo "  make deploy-testflight Complete TestFlight deployment with guided script"
+	@echo ""
+	@echo "Testing Commands:"
+	@echo "  make test             Run unit tests"
+	@echo "  make test-watch       Run tests in watch mode"
+	@echo "  make test-coverage    Run tests with coverage report"
+	@echo "  make test-e2e         Run E2E tests (iOS)"
+	@echo "  make test-e2e-android Run E2E tests (Android)"
+	@echo "  make test-e2e-build   Build E2E test app"
+	@echo "  make test-all         Run all tests (unit + E2E)"
+	@echo "  make test-install     Install testing dependencies"
 	@echo ""
 	@echo "Maintenance Commands:"
 	@echo "  make clean            Clean build artifacts"
 	@echo "  make reset            Reset node_modules and caches"
 	@echo "  make lint             Run linter"
-	@echo "  make test             Run tests"
 	@echo "  make check-env        Check development environment"
 	@echo "  make check-device     Check iOS device setup and certificates"
 
@@ -205,8 +216,57 @@ lint:
 	npm run lint
 
 test:
-	@echo "🧪 Running tests..."
+	@echo "🧪 Running unit tests..."
 	npm test
+
+test-watch:
+	@echo "🧪 Running tests in watch mode..."
+	npm run test:watch
+
+test-coverage:
+	@echo "🧪 Running tests with coverage report..."
+	npm run test:coverage
+	@echo "📊 Coverage report generated in coverage/ directory"
+
+test-e2e-setup:
+	@echo "🧪 Setting up E2E tests..."
+	@echo "1. Building E2E test app..."
+	npm run test:e2e:build
+	@echo "✅ E2E setup complete"
+
+test-e2e:
+	@echo "🧪 Running E2E tests on iOS simulator..."
+	npm run test:e2e
+
+test-e2e-android:
+	@echo "🧪 Running E2E tests on Android emulator..."
+	npm run test:e2e:android
+
+test-e2e-build:
+	@echo "🏗️ Building E2E test app..."
+	npm run test:e2e:build
+
+test-e2e-android-build:
+	@echo "🏗️ Building E2E test app for Android..."
+	npm run test:e2e:android:build
+
+test-all:
+	@echo "🧪 Running all tests..."
+	@echo "1. Running unit tests..."
+	npm test
+	@echo "2. Running E2E tests..."
+	@if command -v detox &> /dev/null; then \
+		npm run test:e2e; \
+	else \
+		echo "⚠️  Detox not installed. Skipping E2E tests."; \
+		echo "   Run 'npm install' to install Detox"; \
+	fi
+	@echo "✅ All tests completed"
+
+test-install:
+	@echo "🧪 Installing testing dependencies..."
+	npm install --save-dev @testing-library/react-native @testing-library/jest-native detox mockdate
+	@echo "✅ Testing dependencies installed"
 
 # Maintenance Commands
 clean:
@@ -398,3 +458,8 @@ update-icons:
 configure-signing:
 	@echo "🔧 Configuring iOS signing..."
 	@./configure-signing.sh
+
+# TestFlight Deployment
+deploy-testflight:
+	@echo "🚀 Starting TestFlight deployment with guided script..."
+	@./scripts/deploy-testflight.sh

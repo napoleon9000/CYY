@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![CYY Logo](https://img.shields.io/badge/CYY-v1.0.0-e236ff?style=for-the-badge&logo=react&logoColor=white)
+![CYY Logo](https://img.shields.io/badge/CYY-v2.0.0-e236ff?style=for-the-badge&logo=react&logoColor=white)
 
-A beautiful, modern React Native app to help you remember to take your medications on time.
+A complete React Native medication reminder app with photo evidence, retry notifications, and comprehensive tracking.
 
 ![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
@@ -13,16 +13,15 @@ A beautiful, modern React Native app to help you remember to take your medicatio
 
 </div>
 
-## ✅ Status: Ready for Development!
+## ✅ Status: Production Ready!
 
-Your React Native medication reminder app has been successfully set up with:
-- ✅ React Native 0.75.4 with proper iOS project structure
-- ✅ All required dependencies installed and configured
-- ✅ iOS pods successfully installed (76 dependencies)
-- ✅ Navigation system with bottom tabs
-- ✅ Placeholder screens with beautiful gradients
-- ✅ TypeScript configuration
-- ✅ Makefile for easy commands
+Your React Native medication reminder app is **fully implemented** and ready for App Store deployment:
+- ✅ All core features complete and tested
+- ✅ Enhanced notification system with retry logic
+- ✅ Full camera integration with photo evidence
+- ✅ iOS-style swipe gestures and animations
+- ✅ Comprehensive analytics and tracking
+- ✅ Ready for iOS/Android app stores
 
 ## 🚀 Quick Start
 
@@ -32,271 +31,259 @@ Your React Native medication reminder app has been successfully set up with:
 - **Node.js 18+**
 - **CocoaPods** (automatically installed)
 
-### Running the App
+### Installation & Setup
+```bash
+# Install dependencies
+npm install
 
-1. **Start Metro Bundler**:
-   ```bash
-   npm start
-   # or
-   make start
-   ```
+# iOS setup
+cd ios && pod install && cd ..
 
-2. **Run on iOS Simulator**:
-   ```bash
-   npm run ios
-   # or 
-   make ios
-   ```
+# Start development
+make ios        # iOS simulator
+make android    # Android emulator
+```
 
-3. **Run on Android**:
-   ```bash
-   npm run android
-   # or
-   make android
-   ```
+### Using Makefile (Recommended)
+```bash
+make help           # See all available commands
+make debug-ios      # Full debugging session (Metro + Flipper + Simulator)
+make clean          # Clean builds
+make reset          # Full reset (nuclear option)
+```
 
-## 🎯 Current Features (Implemented)
+## 🎯 Complete Features
 
-### ✅ Working Now
-- **Navigation System** - Bottom tab navigation with 4 screens
-- **Beautiful UI** - Gradient headers and modern styling
-- **TypeScript Setup** - Full type safety
-- **Database Foundation** - AsyncStorage utilities ready
-- **Cross-Platform** - iOS and Android support
+### Core Functionality ✅
+- **Medication Management**: Full CRUD with validation, colors, scheduling
+- **Smart Notifications**: Configurable retry notifications (0-99 times, 10-min intervals)
+- **Photo Evidence**: Camera integration with thumbnails and full-screen viewer
+- **Analytics Dashboard**: Compliance tracking, streaks, time distribution charts
+- **iOS-style UI**: Swipe-to-delete, smooth animations, Material Design
 
-### 🔮 Next Steps (Ready to Implement)
-- **Medication Management** - Add/edit/delete medications
-- **Smart Reminders** - Background push notifications
-- **Photo Documentation** - Camera integration
-- **History Tracking** - Medication logs and compliance
-- **Settings Panel** - Customization options
+### Advanced Features ✅
+- **Retry Logic**: Automatic cancellation when medication taken/skipped
+- **Human-friendly Timestamps**: "Just now", "5 minutes ago", "Yesterday at 2:30 PM"
+- **Swipe Actions**: iOS-style delete button after 60px swipe threshold
+- **Photo Metadata**: Full timestamp tracking and contextual display
+- **Flipper Debugging**: Complete logging and database inspection
 
-## 📱 Screens Overview
+## 📱 Screenshots & Screens
 
-| Screen | Status | Description |
-|--------|---------|-------------|
-| **Home** | ✅ Basic | Welcome screen with gradient header |
-| **Add Medication** | 🔮 Placeholder | Medication form (ready to implement) |
-| **History** | 🔮 Placeholder | Compliance tracking (ready to implement) |
-| **Settings** | 🔮 Placeholder | App configuration (ready to implement) |
+| Screen | Features |
+|--------|----------|
+| **Home** | Medication list, active/inactive toggle, quick actions |
+| **Add Medication** | Form with retry count, colors, scheduling, validation |
+| **Track** | History with photo thumbnails, swipe-to-delete, statistics |
+| **Medication Details** | Charts, compliance stats, photo gallery |
+| **Settings** | Notifications, data management, preferences |
 
 ## 🛠️ Development Commands
 
-Use the included Makefile for easy development:
-
+### Core Development
 ```bash
-# Setup
-make install          # Install dependencies
-make setup-ios        # Setup iOS dependencies
+# Quick start
+npm start          # Start Metro bundler
+npm run ios        # iOS simulator
+npm run android    # Android emulator
 
-# Development  
-make ios              # Run on iOS simulator
-make android          # Run on Android emulator
-make start            # Start Metro bundler
-
-# Building
-make build-ios        # Build iOS release
-make archive-ios      # Create iOS archive for App Store
-make build-android    # Build Android APK
-
-# Maintenance
-make clean            # Clean build artifacts
-make reset            # Reset everything
-make lint             # Run linter
+# Advanced debugging
+make debug-ios      # Full iOS debugging session
+make debug-android  # Full Android debugging session
+make flipper        # Open Flipper debugger
 ```
 
-## 📦 Dependencies Installed
+### Production Building
+```bash
+# iOS App Store
+make archive-ios    # Create iOS archive
+make export-ios     # Export for App Store
 
-### Core Navigation & UI
-- `@react-navigation/native` - Navigation system
-- `@react-navigation/bottom-tabs` - Tab navigation
-- `@react-navigation/native-stack` - Stack navigation
-- `react-native-safe-area-context` - Safe area handling
-- `react-native-screens` - Native screen components
-
-### Styling & Animation
-- `react-native-linear-gradient` - Beautiful gradients ✨
-- `react-native-animatable` - Smooth animations
-- `react-native-reanimated` - Advanced animations
-- `react-native-vector-icons` - Icon library
-- `react-native-svg` - SVG support
-
-### Functionality
-- `@react-native-async-storage/async-storage` - Local storage
-- `react-native-push-notification` - Notifications
-- `react-native-image-picker` - Camera/photo picker
-- `react-native-date-picker` - Time selection
-- `react-native-haptic-feedback` - Vibration feedback
-- `react-native-sound` - Audio alerts
-
-## 🏗️ Project Structure
-
-```
-CYYMobileApp/
-├── src/
-│   ├── components/         # Reusable UI components
-│   ├── screens/           # App screens (4 implemented)
-│   │   ├── HomeScreen.tsx
-│   │   ├── AddMedicationScreen.tsx
-│   │   ├── HistoryScreen.tsx
-│   │   └── SettingsScreen.tsx
-│   ├── utils/             # Utility functions
-│   │   └── database.ts    # AsyncStorage wrapper
-│   └── types/             # TypeScript definitions
-│       └── index.ts
-├── ios/                   # iOS native code
-│   ├── Podfile           # CocoaPods dependencies
-│   └── CYYMobileApp.xcworkspace
-├── android/              # Android native code
-├── App.tsx              # Main app component
-├── Makefile            # Development commands
-└── package.json        # Dependencies
+# Android
+make build-android  # Create Android APK
 ```
 
-## 🍎 iOS App Store Deployment
+### Maintenance
+```bash
+make clean          # Clean build artifacts
+make reset          # Full reset (deletes node_modules)
+make clear-cache    # Clear Metro cache
+make kill-metro     # Stop existing Metro processes
+```
 
-### Building for iOS
+## 📦 Key Dependencies
 
-1. **Open in Xcode**:
-   ```bash
-   open ios/CYYMobileApp.xcworkspace
-   ```
+### Core Framework
+- **React Native 0.75.4** - Latest stable with TypeScript
+- **@react-navigation** - Navigation system (tabs + stack)
+- **AsyncStorage** - Local data persistence
 
-2. **Configure Bundle ID**:
-   - Set unique bundle identifier (e.g., `com.yourcompany.cyy`)
-   - Configure Team ID and provisioning profiles
+### Camera & Media
+- **react-native-image-picker** - Camera/gallery integration
+- **react-native-permissions** - Runtime permissions
+- **Photo components** - Custom thumbnail and viewer
 
-3. **Build Archive**:
-   ```bash
-   make archive-ios
-   ```
+### Notifications
+- **react-native-push-notification** - Background notifications
+- **Custom retry system** - Database-backed retry logic
+- **Smart cancellation** - Automatic cleanup
 
-4. **Export for App Store**:
-   - Update `ios/ExportOptions.plist` with your Team ID
-   - Export IPA file for App Store submission
+### UI & Animation
+- **react-native-linear-gradient** - Beautiful gradients
+- **react-native-vector-icons** - Material icons
+- **Custom animations** - iOS-style swipe gestures
 
-### Requirements
+## 🏗️ Production Architecture
+
+```
+src/
+├── components/           # Reusable UI components
+│   ├── CameraModal.tsx   # Full camera interface
+│   ├── PhotoThumbnail.tsx # Reusable thumbnail
+│   └── PhotoViewerModal.tsx # Full-screen viewer
+├── screens/              # Complete app screens
+│   ├── HomeScreen.tsx    # Medication CRUD
+│   ├── AddMedicationScreen.tsx # Form with retry count
+│   ├── MedicationDetailsScreen.tsx # Stats + photos
+│   ├── TrackScreen.tsx   # History + camera + swipe
+│   └── SettingsScreen.tsx # Preferences
+├── utils/                # Core utilities
+│   ├── database.ts       # AsyncStorage + retry notifications
+│   ├── notifications.ts  # Push notifications + retry logic
+│   └── notificationState.ts # Custom event system
+└── types/                # TypeScript interfaces
+    ├── medication.ts     # Core data models
+    └── navigation.ts     # Navigation types
+```
+
+## 🍎 App Store Deployment
+
+### iOS Requirements
 - **Apple Developer Account** ($99/year)
-- **Xcode 15+** 
 - **Valid provisioning profile**
-- **App Store guidelines compliance**
+- **Bundle ID configured**
+- **Team ID in ExportOptions.plist**
 
-## 🎨 Design System
+### Deployment Process
+1. **Configure signing**: Update bundle ID and team ID
+2. **Create archive**: `make archive-ios`
+3. **Export for App Store**: `make export-ios`
+4. **Upload**: Via Xcode Organizer or Transporter
 
-### Colors
-- **Primary**: `#6C5CE7` (Purple)
-- **Secondary**: `#A29BFE` (Light Purple)
-- **Success**: `#4CAF50` (Green)
-- **Warning**: `#FF9800` (Orange)
-- **Error**: `#F44336` (Red)
+### Required Permissions
+- **iOS**: Camera, Photo Library (configured in Info.plist)
+- **Android**: Camera, External Storage (configured in AndroidManifest.xml)
 
-### Typography
-- **Headers**: Bold, 28-32px
-- **Body**: Regular, 16px
-- **Caption**: Medium, 14px
+## 🔧 Advanced Features
 
-## 🔧 Configuration Files
+### Flipper Debugging
+```bash
+make flipper-install  # Install Flipper (one-time)
+make debug-ios       # Auto-start debugging session
+```
 
-### Key Files Configured
-- ✅ `package.json` - All dependencies added
-- ✅ `babel.config.js` - Reanimated plugin configured
-- ✅ `tsconfig.json` - TypeScript setup
-- ✅ `ios/Podfile` - iOS native dependencies
-- ✅ `metro.config.js` - Metro bundler config
+**Available debugging:**
+- Database inspection (AsyncStorage browser)
+- Network monitoring
+- Custom logging with [Flipper] tags
+- React DevTools integration
+
+### Custom Event System
+- Replaced Node.js EventEmitter for React Native compatibility
+- Camera request handling from notifications
+- Array-based listener management
+
+### Photo System
+- Local file URI storage
+- Human-friendly timestamp captions
+- Thumbnail generation with overlay icons
+- Full-screen viewer with pinch-to-zoom
+
+### Notification Architecture
+- Weekly scheduling with retry logic
+- Database-backed retry tracking
+- Comprehensive cancellation system
+- Interactive notifications (Photo/Taken/Skipped)
 
 ## 🚨 Troubleshooting
 
 ### Common Issues
 
-1. **iOS Simulator Not Found**:
-   ```bash
-   # List available simulators
-   xcrun simctl list devices
-   
-   # Or use Xcode to install simulators
-   # Xcode > Preferences > Components
-   ```
+**Pod Install Fails:**
+```bash
+cd ios && rm -rf Pods Podfile.lock && pod install
+```
 
-2. **Pod Install Fails**:
-   ```bash
-   # Clean and reinstall
-   make clean
-   make setup-ios
-   ```
+**Metro Bundle Issues:**
+```bash
+make kill-metro     # Stop existing Metro
+make start-clean    # Clean start
+```
 
-3. **Metro Bundler Issues**:
-   ```bash
-   # Reset cache
-   make reload
-   ```
+**Build Errors:**
+```bash
+make clean          # Clean builds
+make reset          # Nuclear option
+```
 
-4. **Build Errors**:
-   ```bash
-   # Full reset
-   make reset
-   ```
+**iOS Simulator Not Found:**
+```bash
+xcrun simctl list devices      # List simulators
+# Install via Xcode > Preferences > Components
+```
 
-## 📈 Next Development Steps
+### Development Tips
+- Use physical device for testing notifications
+- Test camera permissions on real device
+- Verify swipe gestures feel natural
+- Use Flipper for database debugging
 
-1. **Implement Medication Form**:
-   - Complete `AddMedicationScreen.tsx`
-   - Add form validation
-   - Integrate with database
+## 📊 Technical Achievements
 
-2. **Add Home Screen Functionality**:
-   - Display medication list
-   - Show today's reminders
-   - Quick action buttons
+### PWA → React Native Migration ✅
+- **Improved Performance**: 60fps native rendering vs web limitations
+- **Reliable Notifications**: True background scheduling vs browser restrictions
+- **Enhanced Capabilities**: Camera, app store distribution, offline-first
+- **Better UX**: Native gestures, iOS-style interactions
 
-3. **Build History Screen**:
-   - Medication logs display
-   - Compliance statistics
-   - Photo viewing
+### Key Technical Decisions
+- **Custom Event System**: React Native compatibility
+- **Database-backed Retries**: Persistent notification tracking  
+- **Photo Storage**: Local URIs with metadata preservation
+- **iOS-style Gestures**: 60px swipe threshold for delete
 
-4. **Enhance Settings**:
-   - Notification preferences
-   - Sound/vibration settings
-   - Data management
+## 💡 Recent Enhancements
 
-5. **Add Notifications**:
-   - Background notification scheduling
-   - Reminder alerts
-   - Snooze functionality
-
-## 💡 Why This is Better Than the PWA
-
-1. **Native Performance** - Faster rendering and smoother animations
-2. **Reliable Notifications** - Background scheduling that actually works
-3. **Camera Integration** - Native photo capture capabilities
-4. **App Store Distribution** - Professional deployment option
-5. **Platform Optimizations** - iOS and Android specific features
-6. **Offline First** - True offline capabilities with AsyncStorage
+### July 2025 Updates ✅
+- **Enhanced Notifications**: Configurable retry count (0-99)
+- **Camera Integration**: Full photo capture with evidence
+- **Photo Management**: Thumbnails + full-screen viewer
+- **Smart Cancellation**: Auto-cancel retries when taken
+- **iOS Swipe**: Improved delete gesture with button
+- **Human Timestamps**: Contextual photo captions
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Implement features using the existing structure
-4. Test on both iOS and Android
-5. Submit a pull request
+1. Read `CLAUDE.md` for technical documentation
+2. Use existing patterns and components
+3. Test on both iOS and Android
+4. Follow TypeScript strict mode
+5. Add proper error handling
 
 ## 📄 License
 
-MIT License - Feel free to use and modify for your projects.
-
-## 💖 Acknowledgments
-
-- Made with love for better health management
-- Converted from PWA to React Native with significant improvements
-- Built with React Native's amazing ecosystem
+MIT License - Free to use and modify.
 
 ---
 
 <div align="center">
 
-**Ready to build an amazing medication reminder app! 🚀**
+**🎉 Fully Implemented & Production Ready! 🚀**
 
-![Status](https://img.shields.io/badge/status-ready%20for%20development-brightgreen)
+![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)
+![Features](https://img.shields.io/badge/features-complete-blue)
 ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-lightgrey)
+
+*React Native 0.75.4 • TypeScript • Ready for App Store*
 
 </div>
