@@ -98,3 +98,60 @@ export interface DebugInfo {
   totalLogs: number;
   lastSync?: Date;
 }
+
+/**
+ * User interface
+ */
+export interface User {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+  inviteCode: string;
+  createdAt: Date;
+}
+
+/**
+ * Friend interface
+ */
+export interface Friend {
+  id: string;
+  userId: string;
+  friendUserId: string;
+  friendUsername: string;
+  friendDisplayName: string;
+  friendAvatarUrl?: string;
+  status: 'pending' | 'accepted' | 'blocked';
+  createdAt: Date;
+  acceptedAt?: Date;
+}
+
+/**
+ * Shared medication interface
+ */
+export interface SharedMedication {
+  id: string;
+  medicationId: string;
+  userId: string;
+  sharedWithFriendId: string;
+  sharedWithUsername: string;
+  canRemind: boolean;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+/**
+ * Friend reminder interface
+ */
+export interface FriendReminder {
+  id: string;
+  sharedMedicationId: string;
+  fromUserId: string;
+  fromUsername: string;
+  toUserId: string;
+  medicationName: string;
+  reminderMessage: string;
+  sentAt: Date;
+  readAt?: Date;
+  type: 'missed_dose' | 'encouragement' | 'custom';
+}

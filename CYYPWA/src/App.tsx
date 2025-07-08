@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaHome, FaPlus, FaHistory, FaCog, FaBell } from 'react-icons/fa';
+import { FaHome, FaPlus, FaHistory, FaCog, FaBell, FaUserFriends } from 'react-icons/fa';
 import { db, Medication } from './db/database';
 import { requestNotificationPermission } from './utils/notifications';
 import HomePage from './components/HomePage';
 import AddMedication from './components/AddMedication';
 import MedicationHistory from './components/MedicationHistory';
 import Settings from './components/Settings';
+import FriendsPage from './components/FriendsPage';
 import ReminderModal from './components/ReminderModal';
 import './App.css';
 
-type TabType = 'home' | 'add' | 'history' | 'settings';
+type TabType = 'home' | 'add' | 'history' | 'friends' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -65,6 +66,8 @@ function App() {
         return <AddMedication onSave={() => { loadMedications(); setActiveTab('home'); }} />;
       case 'history':
         return <MedicationHistory />;
+      case 'friends':
+        return <FriendsPage medications={medications} onUpdate={loadMedications} />;
       case 'settings':
         return <Settings />;
       default:
@@ -122,6 +125,7 @@ function App() {
             { id: 'home', icon: FaHome, label: 'Home' },
             { id: 'add', icon: FaPlus, label: 'Add' },
             { id: 'history', icon: FaHistory, label: 'History' },
+            { id: 'friends', icon: FaUserFriends, label: 'Friends' },
             { id: 'settings', icon: FaCog, label: 'Settings' },
           ].map((tab) => (
             <motion.button
