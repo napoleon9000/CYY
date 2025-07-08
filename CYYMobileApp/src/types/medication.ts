@@ -29,6 +29,7 @@ export interface Medication {
   icon: string;
   notes?: string;
   retryCount: number; // Number of retry notifications (0-99)
+  criticalNotification: boolean; // Critical notifications bypass DND and silent mode
 }
 
 /**
@@ -58,6 +59,7 @@ export interface MedicationFormData {
   icon: string;
   notes: string;
   retryCount: number;
+  criticalNotification: boolean;
 }
 
 /**

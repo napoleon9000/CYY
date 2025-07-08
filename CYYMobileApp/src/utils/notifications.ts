@@ -403,10 +403,21 @@ export const scheduleNotification = (medication: Medication, notificationTime: D
   // iOS specific configuration
   if (Platform.OS === 'ios') {
     notificationConfig.category = 'MEDICATION_ACTIONS';
+    // Critical notifications bypass DND and silent mode
+    if (medication.criticalNotification) {
+      notificationConfig.critical = true;
+      notificationConfig.criticalSoundName = 'default';
+    }
   } else {
     // Android specific configuration
     notificationConfig.channelId = 'medication-reminders';
     notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
+    // Critical notifications use high priority and override DND
+    if (medication.criticalNotification) {
+      notificationConfig.priority = 'high';
+      notificationConfig.importance = 'high';
+      notificationConfig.fullScreenIntent = true;
+    }
   }
 
   PushNotification.localNotificationSchedule(notificationConfig);
@@ -626,10 +637,21 @@ export const scheduleRetryNotification = async (medication: Medication, original
   // iOS specific configuration
   if (Platform.OS === 'ios') {
     notificationConfig.category = 'MEDICATION_ACTIONS';
+    // Critical notifications bypass DND and silent mode
+    if (medication.criticalNotification) {
+      notificationConfig.critical = true;
+      notificationConfig.criticalSoundName = 'default';
+    }
   } else {
     // Android specific configuration
     notificationConfig.channelId = 'medication-reminders';
     notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
+    // Critical notifications use high priority and override DND
+    if (medication.criticalNotification) {
+      notificationConfig.priority = 'high';
+      notificationConfig.importance = 'high';
+      notificationConfig.fullScreenIntent = true;
+    }
   }
 
   PushNotification.localNotificationSchedule(notificationConfig);
@@ -717,10 +739,21 @@ export const scheduleNotificationWithRetry = async (medication: Medication, noti
   // iOS specific configuration
   if (Platform.OS === 'ios') {
     notificationConfig.category = 'MEDICATION_ACTIONS';
+    // Critical notifications bypass DND and silent mode
+    if (medication.criticalNotification) {
+      notificationConfig.critical = true;
+      notificationConfig.criticalSoundName = 'default';
+    }
   } else {
     // Android specific configuration
     notificationConfig.channelId = 'medication-reminders';
     notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
+    // Critical notifications use high priority and override DND
+    if (medication.criticalNotification) {
+      notificationConfig.priority = 'high';
+      notificationConfig.importance = 'high';
+      notificationConfig.fullScreenIntent = true;
+    }
   }
 
   PushNotification.localNotificationSchedule(notificationConfig);

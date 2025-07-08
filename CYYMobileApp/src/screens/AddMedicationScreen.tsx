@@ -26,6 +26,7 @@ const AddMedicationScreen: React.FC = () => {
     color: medication?.color || MEDICATION_COLORS[0],
     notes: medication?.notes || '',
     retryCount: medication?.retryCount || 0,
+    criticalNotification: medication?.criticalNotification || false,
   });
 
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -146,6 +147,7 @@ const AddMedicationScreen: React.FC = () => {
         icon: medication?.icon || 'pill',
         notes: formData.notes.trim(),
         retryCount: formData.retryCount,
+        criticalNotification: formData.criticalNotification,
         createdAt: medication?.createdAt || now,
         updatedAt: now,
       };
@@ -363,6 +365,50 @@ const AddMedicationScreen: React.FC = () => {
               </Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Critical Notification Toggle */}
+        <View style={styles.inputSection}>
+          <Text style={styles.label}>重要提醒 (Critical Notification)</Text>
+          <TouchableOpacity
+            style={[
+              styles.criticalToggle,
+              formData.criticalNotification && styles.criticalToggleActive
+            ]}
+            onPress={() => setFormData(prev => ({ ...prev, criticalNotification: !prev.criticalNotification }))}
+          >
+            <View style={styles.criticalToggleContent}>
+              <View style={styles.criticalToggleIcon}>
+                <Icon 
+                  name={formData.criticalNotification ? 'notification-important' : 'notifications-off'} 
+                  size={24} 
+                  color={formData.criticalNotification ? '#FF4757' : '#666'} 
+                />
+              </View>
+              <View style={styles.criticalToggleText}>
+                <Text style={styles.criticalToggleTitle}>
+                  {formData.criticalNotification ? 'Critical Alerts ON' : 'Critical Alerts OFF'}
+                </Text>
+                <Text style={styles.criticalToggleSubtitle}>
+                  {formData.criticalNotification 
+                    ? 'Bypasses Do Not Disturb and silent mode' 
+                    : 'Tap to enable critical notifications'}
+                </Text>
+              </View>
+              <View style={[
+                styles.criticalToggleSwitch,
+                formData.criticalNotification && styles.criticalToggleSwitchActive
+              ]}>
+                <View style={[
+                  styles.criticalToggleSwitchThumb,
+                  formData.criticalNotification && styles.criticalToggleSwitchThumbActive
+                ]} />
+              </View>
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.helperText}>
+            Critical notifications will show even when iPhone is in Do Not Disturb mode or silent mode
+          </Text>
         </View>
 
         {/* Color Selection */}
@@ -635,6 +681,65 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginHorizontal: 32,
     lineHeight: 16,
+  },
+  criticalToggle: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  criticalToggleActive: {
+    borderWidth: 2,
+    borderColor: '#FF4757',
+  },
+  criticalToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  criticalToggleIcon: {
+    marginRight: 12,
+  },
+  criticalToggleText: {
+    flex: 1,
+  },
+  criticalToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  criticalToggleSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  criticalToggleSwitch: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E0E0E0',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  criticalToggleSwitchActive: {
+    backgroundColor: '#FF4757',
+  },
+  criticalToggleSwitchThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  criticalToggleSwitchThumbActive: {
+    alignSelf: 'flex-end',
   },
 });
 

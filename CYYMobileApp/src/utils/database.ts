@@ -19,20 +19,25 @@ export class Database {
       const data = await AsyncStorage.getItem(KEYS.MEDICATIONS);
       let medications = data ? JSON.parse(data) : [];
       
-      // Data migration: Add retryCount field to existing medications
+      // Data migration: Add retryCount and criticalNotification fields to existing medications
       let needsUpdate = false;
       medications = medications.map((med: any) => {
+        let updated = { ...med };
         if (med.retryCount === undefined) {
           needsUpdate = true;
-          return { ...med, retryCount: 0 };
+          updated.retryCount = 0;
         }
-        return med;
+        if (med.criticalNotification === undefined) {
+          needsUpdate = true;
+          updated.criticalNotification = false;
+        }
+        return updated;
       });
       
       // Save updated medications if migration was needed
       if (needsUpdate) {
         await AsyncStorage.setItem(KEYS.MEDICATIONS, JSON.stringify(medications));
-        flipperLog.database('MIGRATE', 'medications', { count: medications.length, addedRetryCount: true });
+        flipperLog.database('MIGRATE', 'medications', { count: medications.length, addedRetryCount: true, addedCriticalNotification: true });
       }
       
       flipperLog.database('GET', 'medications', { count: medications.length });
