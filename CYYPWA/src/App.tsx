@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaHome, FaPlus, FaHistory, FaCog, FaBell } from 'react-icons/fa';
+import { IconType } from 'react-icons';
 import { db, Medication } from './db/database';
 import { requestNotificationPermission, showNotification } from './utils/notifications';
 import HomePage from './components/HomePage';
@@ -14,6 +15,12 @@ import { listenToReminders } from './utils/cloud';
 import './App.css';
 
 type TabType = 'home' | 'add' | 'history' | 'settings' | 'friend';
+
+type TabInfo = {
+  id: TabType;
+  icon: IconType;
+  label: string;
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -148,17 +155,19 @@ function App() {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 glass-morphism border-t border-white/20">
         <div className="max-w-4xl mx-auto flex justify-around items-center py-2">
-          {[
-            { id: 'home', icon: FaHome, label: 'Home' },
-            { id: 'add', icon: FaPlus, label: 'Add' },
-            { id: 'history', icon: FaHistory, label: 'History' },
-            { id: 'settings', icon: FaCog, label: 'Settings' },
-          ].map((tab) => (
+          {(
+            [
+              { id: 'home', icon: FaHome, label: 'Home' },
+              { id: 'add', icon: FaPlus, label: 'Add' },
+              { id: 'history', icon: FaHistory, label: 'History' },
+              { id: 'settings', icon: FaCog, label: 'Settings' },
+            ] as TabInfo[]
+          ).map((tab: TabInfo) => (
             <motion.button
               key={tab.id}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setActiveTab(tab.id as TabType)}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex flex-col items-center p-3 rounded-2xl transition-all ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg'
