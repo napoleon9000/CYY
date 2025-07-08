@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaBell, FaVolumeUp, FaMoon, FaSun, FaTrash, FaHeart, FaShieldAlt } from 'react-icons/fa';
+import { FaBell, FaVolumeUp, FaMoon, FaSun, FaTrash, FaHeart, FaShieldAlt, FaSignOutAlt, FaUserFriends, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { requestNotificationPermission, playSound, vibrate } from '../utils/notifications';
 import { db } from '../db/database';
+import { useAuth } from '../contexts/AuthContext';
 
 const Settings: React.FC = () => {
+  const { user, logout } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(Notification.permission === 'granted');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [friendNotifications, setFriendNotifications] = useState(true);
+  const [shareByDefault, setShareByDefault] = useState(false);
 
   const handleNotificationToggle = async () => {
     if (!notificationsEnabled) {
@@ -42,7 +46,31 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleLogout = async () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      try {
+        await logout();
+        vibrate();
+      } catch (error) {
+        console.error('Failed to logout:', error);
+      }
+    }
+  };
+
   const settingsGroups = [
+    {
+      title: 'Account',
+      icon: FaUserFriends,
+      items: [
+        {
+          id: 'profile',
+          label: user?.name || 'User',
+          description: user?.email || 'user@example.com',
+          type: 'info',
+          icon: FaUserFriends,
+        },
+      ],
+    },
     {
       title: 'Notifications',
       icon: FaBell,
@@ -62,6 +90,28 @@ const Settings: React.FC = () => {
           enabled: soundEnabled,
           onToggle: handleSoundToggle,
           icon: FaVolumeUp,
+        },
+        {
+          id: 'friendNotifications',
+          label: 'Friend Reminders',
+          description: 'Receive notifications from friends',
+          enabled: friendNotifications,
+          onToggle: () => setFriendNotifications(!friendNotifications),
+          icon: FaUserFriends,
+        },
+      ],
+    },
+    {
+      title: 'Privacy',
+      icon: FaShieldAlt,
+      items: [
+        {
+          id: 'shareByDefault',
+          label: 'Auto-share with Friends',
+          description: 'New medications are shared by default',
+          enabled: shareByDefault,
+          onToggle: () => setShareByDefault(!shareByDefault),
+          icon: shareByDefault ? FaEye : FaEyeSlash,
         },
       ],
     },
@@ -92,6 +142,26 @@ const Settings: React.FC = () => {
         Settings
       </motion.h2>
 
+      {/* Friend Code Display */}
+      {user && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-morphism rounded-2xl p-4 mb-6"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-800">Your Friend Code</h3>
+              <p className="text-2xl font-mono font-bold text-primary-600 mt-1">{user.friendCode}</p>
+            </div>
+            <div className="text-right text-sm text-gray-600">
+              <p>Share this code</p>
+              <p>to connect with friends</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Settings Groups */}
       {settingsGroups.map((group, groupIndex) => (
         <motion.div
@@ -118,7 +188,11 @@ const Settings: React.FC = () => {
                   <div className="flex items-center space-x-3">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        item.enabled ? 'bg-gradient-to-r from-primary-400 to-primary-500' : 'bg-gray-300'
+                        'type' in item && item.type === 'info' 
+                          ? 'bg-gradient-to-br from-purple-400 to-pink-400'
+                          : item.enabled 
+                          ? 'bg-gradient-to-r from-primary-400 to-primary-500' 
+                          : 'bg-gray-300'
                       }`}
                     >
                       <item.icon className="text-white text-sm" />
@@ -128,19 +202,21 @@ const Settings: React.FC = () => {
                       <p className="text-sm text-gray-600">{item.description}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={item.onToggle}
-                    disabled={'disabled' in item && item.disabled}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      item.enabled ? 'bg-primary-500' : 'bg-gray-300'
-                    } ${'disabled' in item && item.disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <motion.span
-                      animate={{ x: item.enabled ? 20 : 2 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      className="inline-block h-4 w-4 transform rounded-full bg-white shadow-lg"
-                    />
-                  </button>
+                  {'onToggle' in item && (
+                    <button
+                      onClick={item.onToggle}
+                      disabled={'disabled' in item && item.disabled}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        item.enabled ? 'bg-primary-500' : 'bg-gray-300'
+                      } ${'disabled' in item && item.disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <motion.span
+                        animate={{ x: item.enabled ? 20 : 2 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        className="inline-block h-4 w-4 transform rounded-full bg-white shadow-lg"
+                      />
+                    </button>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -176,6 +252,26 @@ const Settings: React.FC = () => {
             </div>
           </div>
         </button>
+
+        {/* Logout Button */}
+        {user && (
+          <button
+            onClick={handleLogout}
+            className="w-full glass-morphism rounded-2xl p-4 text-left hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <FaSignOutAlt className="text-orange-500 text-sm" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-800">Logout</h4>
+                  <p className="text-sm text-gray-600">Sign out of your account</p>
+                </div>
+              </div>
+            </div>
+          </button>
+        )}
       </motion.div>
 
       {/* About Section */}

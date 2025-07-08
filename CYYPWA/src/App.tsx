@@ -1,35 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaHome, FaPlus, FaHistory, FaCog, FaBell } from 'react-icons/fa';
+import { FaHome, FaPlus, FaHistory, FaCog, FaBell, FaUserFriends } from 'react-icons/fa';
 import { db, Medication } from './db/database';
 import { requestNotificationPermission } from './utils/notifications';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import HomePage from './components/HomePage';
 import AddMedication from './components/AddMedication';
 import MedicationHistory from './components/MedicationHistory';
 import Settings from './components/Settings';
 import ReminderModal from './components/ReminderModal';
+import Login from './components/Login';
+import Friends from './components/Friends';
 import './App.css';
 
-type TabType = 'home' | 'add' | 'history' | 'settings';
+type TabType = 'home' | 'add' | 'history' | 'friends' | 'settings';
 
-function App() {
+function AppContent() {
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [medications, setMedications] = useState<Medication[]>([]);
   const [showReminder, setShowReminder] = useState(false);
   const [currentReminder, setCurrentReminder] = useState<Medication | null>(null);
 
   useEffect(() => {
-    // Request notification permission on app load
-    requestNotificationPermission();
-    
-    // Load medications from database
-    loadMedications();
-    
-    // Set up reminder checking interval
-    const interval = setInterval(checkReminders, 60000); // Check every minute
-    
-    return () => clearInterval(interval);
-  }, []);
+    if (isAuthenticated) {
+      // Request notification permission on app load
+      requestNotificationPermission();
+      
+      // Load medications from database
+      loadMedications();
+      
+      // Set up reminder checking interval
+      const interval = setInterval(checkReminders, 60000); // Check every minute
+      
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
 
   const loadMedications = async () => {
     try {
@@ -65,12 +71,31 @@ function App() {
         return <AddMedication onSave={() => { loadMedications(); setActiveTab('home'); }} />;
       case 'history':
         return <MedicationHistory />;
+      case 'friends':
+        return <Friends />;
       case 'settings':
         return <Settings />;
       default:
         return null;
     }
   };
+
+  // Show loading screen while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return <Login onSuccess={() => {}} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
@@ -93,9 +118,14 @@ function App() {
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-sm text-gray-600 font-medium"
+            className="flex items-center space-x-3"
           >
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            <span className="text-sm text-gray-600 font-medium">
+              Hi, {user?.name || 'User'}!
+            </span>
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
           </motion.div>
         </div>
       </header>
@@ -122,6 +152,7 @@ function App() {
             { id: 'home', icon: FaHome, label: 'Home' },
             { id: 'add', icon: FaPlus, label: 'Add' },
             { id: 'history', icon: FaHistory, label: 'History' },
+            { id: 'friends', icon: FaUserFriends, label: 'Friends' },
             { id: 'settings', icon: FaCog, label: 'Settings' },
           ].map((tab) => (
             <motion.button
@@ -160,6 +191,14 @@ function App() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
