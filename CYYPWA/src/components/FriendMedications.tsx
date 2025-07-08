@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { firestore } from '../firebase';
 import { Medication } from '../db/database';
 import { motion } from 'framer-motion';
@@ -18,7 +18,7 @@ const FriendMedications: React.FC<Props> = ({ friendId }) => {
   useEffect(() => {
     const fetch = async () => {
       const snap = await getDocs(collection(firestore, 'users', friendId, 'medications'));
-      const list: Medication[] = snap.docs.map((d) => d.data() as Medication);
+      const list: Medication[] = snap.docs.map((d: QueryDocumentSnapshot<DocumentData>) => d.data() as Medication);
       setMeds(list);
     };
     fetch().catch(console.error);
@@ -32,7 +32,7 @@ const FriendMedications: React.FC<Props> = ({ friendId }) => {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-gray-800">Friend's Medications</h2>
-      {meds.map((med) => (
+      {meds.map((med: Medication) => (
         <motion.div key={med.id} className="glass-morphism rounded-2xl p-4 flex justify-between items-center">
           <div>
             <h3 className="font-semibold">{med.name}</h3>

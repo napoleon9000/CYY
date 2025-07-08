@@ -10,6 +10,9 @@ import {
   updateDoc,
   getDocs,
   DocumentReference,
+  DocumentData,
+  QuerySnapshot,
+  DocumentChange,
 } from 'firebase/firestore';
 import { Medication } from '../db/database';
 
@@ -32,12 +35,12 @@ export const pushMedicationToCloud = async (uid: string, medication: Medication)
 
 export const listenToReminders = (
   uid: string,
-  onReminder: (data: any, docRef: DocumentReference) => void,
+  onReminder: (data: DocumentData, docRef: DocumentReference<DocumentData>) => void,
   options: { autoAck?: boolean } = { autoAck: true }
 ) => {
   const q = query(collection(firestore, 'reminders'), where('targetId', '==', uid), where('sent', '==', false));
-  return onSnapshot(q, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
+  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+    snapshot.docChanges().forEach((change: DocumentChange<DocumentData>) => {
       if (change.type === 'added') {
         const data = change.doc.data();
         onReminder(data, change.doc.ref);

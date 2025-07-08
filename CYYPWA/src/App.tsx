@@ -96,7 +96,7 @@ function App() {
       case 'settings':
         return <Settings />;
       case 'friend':
-        return <FriendMedications friendId={friendViewId} />;
+        return friendViewId ? <FriendMedications friendId={friendViewId} /> : null;
       default:
         return null;
     }
