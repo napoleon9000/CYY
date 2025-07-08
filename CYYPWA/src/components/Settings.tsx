@@ -1,13 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaBell, FaVolumeUp, FaMoon, FaSun, FaTrash, FaHeart, FaShieldAlt } from 'react-icons/fa';
-import { requestNotificationPermission, playSound, vibrate } from '../utils/notifications';
+import { requestNotificationPermission, playSound, vibrate, showNotification } from '../utils/notifications';
 import { db } from '../db/database';
+import { useAuthUid } from '../hooks/useAuth';
+import { addFriend, getFriends } from '../utils/cloud';
 
 const Settings: React.FC = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(Notification.permission === 'granted');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+
+  const uid = useAuthUid();
+  const [friends, setFriends] = useState<string[]>([]);
+
+  // Load friends list when uid ready
+  useEffect(() => {
+    if (!uid) return;
+    getFriends(uid).then(setFriends).catch(console.error);
+  }, [uid]);
+
+  // Handle addFriend query param
+  useEffect(() => {
+    if (!uid) return;
+    const params = new URLSearchParams(window.location.search);
+    const friendId = params.get('addFriend');
+    if (friendId && friendId !== uid) {
+      addFriend(uid, friendId)
+        .then(() => {
+          showNotification('Friend added', { body: 'You are now connected with a new friend!' });
+          setFriends((prev: string[]) => Array.from(new Set([...(prev || []), friendId])));
+        })
+        .catch(console.error);
+    }
+  }, [uid]);
 
   const handleNotificationToggle = async () => {
     if (!notificationsEnabled) {
@@ -81,6 +107,43 @@ const Settings: React.FC = () => {
       ],
     },
   ];
+
+  // Friend management UI cards to render below other settings
+  const renderFriendsSection = () => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-gray-700">Friends</h3>
+      <div className="glass-morphism rounded-2xl p-4">
+        <p className="text-sm text-gray-700 mb-2">Share this link with friends so they can add you:</p>
+        <div className="flex items-center space-x-2">
+          <input
+            readOnly
+            className="flex-1 text-xs px-2 py-1 bg-gray-100 rounded-md"
+            value={`${window.location.origin}?addFriend=${uid || ''}`}
+          />
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}?addFriend=${uid || ''}`);
+              showNotification('Copied', { body: 'Link copied to clipboard' });
+            }}
+            className="button-primary text-xs py-1 px-3"
+          >Copy</button>
+        </div>
+      </div>
+
+      <div className="glass-morphism rounded-2xl p-4">
+        <h4 className="font-medium text-gray-800 mb-2">Your Friends ({friends.length})</h4>
+        {friends.length === 0 ? (
+          <p className="text-sm text-gray-500">No friends yet.</p>
+        ) : (
+          <ul className="text-sm list-disc pl-4 space-y-1">
+            {friends.map((fid) => (
+              <li key={fid} className="break-all">{fid}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -207,6 +270,9 @@ const Settings: React.FC = () => {
           <p className="text-xs text-gray-600 mt-1">Free Forever</p>
         </div>
       </motion.div>
+
+      {/* Friend management */}
+      {renderFriendsSection()}
     </div>
   );
 };

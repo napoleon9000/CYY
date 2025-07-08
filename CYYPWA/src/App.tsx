@@ -2,25 +2,42 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaHome, FaPlus, FaHistory, FaCog, FaBell } from 'react-icons/fa';
 import { db, Medication } from './db/database';
-import { requestNotificationPermission } from './utils/notifications';
+import { requestNotificationPermission, showNotification } from './utils/notifications';
 import HomePage from './components/HomePage';
 import AddMedication from './components/AddMedication';
 import MedicationHistory from './components/MedicationHistory';
 import Settings from './components/Settings';
+import FriendMedications from './components/FriendMedications';
 import ReminderModal from './components/ReminderModal';
+import { useAuthUid } from './hooks/useAuth';
+import { listenToReminders } from './utils/cloud';
 import './App.css';
 
-type TabType = 'home' | 'add' | 'history' | 'settings';
+type TabType = 'home' | 'add' | 'history' | 'settings' | 'friend';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [medications, setMedications] = useState<Medication[]>([]);
   const [showReminder, setShowReminder] = useState(false);
   const [currentReminder, setCurrentReminder] = useState<Medication | null>(null);
+  const [friendViewId, setFriendViewId] = useState<string | null>(null);
+  const uid = useAuthUid();
 
   useEffect(() => {
     // Request notification permission on app load
     requestNotificationPermission();
+    
+    // Set up reminder listener from friends
+    let unsubscribeReminders: (() => void) | null = null;
+
+    if (uid) {
+      unsubscribeReminders = listenToReminders(uid, (data) => {
+        // Show push using existing notification util
+        showNotification('Friend Reminder', {
+          body: `Your friend reminded you to take ${data.medicationName}`,
+        });
+      });
+    }
     
     // Load medications from database
     loadMedications();
@@ -28,7 +45,18 @@ function App() {
     // Set up reminder checking interval
     const interval = setInterval(checkReminders, 60000); // Check every minute
     
-    return () => clearInterval(interval);
+    // Check query param for viewing friend's meds
+    const params = new URLSearchParams(window.location.search);
+    const viewId = params.get('viewFriend');
+    if (viewId) {
+      setFriendViewId(viewId);
+      setActiveTab('friend');
+    }
+    
+    return () => {
+      clearInterval(interval);
+      unsubscribeReminders && unsubscribeReminders();
+    };
   }, []);
 
   const loadMedications = async () => {
@@ -67,6 +95,8 @@ function App() {
         return <MedicationHistory />;
       case 'settings':
         return <Settings />;
+      case 'friend':
+        return <FriendMedications friendId={friendViewId} />;
       default:
         return null;
     }

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaPills, FaClock, FaBell, FaVolumeUp, FaMobileAlt, FaSave, FaPalette } from 'react-icons/fa';
 import { db, getMedicationColors, Medication } from '../db/database';
+import { useAuthUid } from '../hooks/useAuth';
+import { pushMedicationToCloud } from '../utils/cloud';
 import { playSound, vibrate } from '../utils/notifications';
 
 interface AddMedicationProps {
@@ -17,6 +19,8 @@ const AddMedication: React.FC<AddMedicationProps> = ({ onSave }) => {
     notificationType: 'notification' as 'notification' | 'sound' | 'vibration',
     color: getMedicationColors()[0],
   });
+
+  const uid = useAuthUid();
 
   const days = [
     { id: 0, name: 'Sun' },
@@ -59,7 +63,14 @@ const AddMedication: React.FC<AddMedicationProps> = ({ onSave }) => {
         icon: 'FaPills',
       };
 
-      await db.medications.add(newMedication);
+      const id = await db.medications.add(newMedication);
+      newMedication.id = id;
+
+      // Sync to cloud so friends can see (ignore errors if offline or not configured)
+      if (uid) {
+        pushMedicationToCloud(uid, newMedication).catch(console.warn);
+      }
+
       playSound('success');
       onSave();
     } catch (error) {
