@@ -407,7 +407,8 @@ const AddMedicationScreen: React.FC = () => {
             </View>
           </TouchableOpacity>
           <Text style={styles.helperText}>
-            Critical notifications will show even when iPhone is in Do Not Disturb mode or silent mode
+            Critical notifications will show even when your device is in Do Not Disturb mode or silent mode. 
+            {Platform.OS === 'ios' ? ' Requires special permissions on iOS.' : ' Uses high priority channels on Android.'}
           </Text>
         </View>
 
