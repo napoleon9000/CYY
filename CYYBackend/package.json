@@ -1,0 +1,31 @@
+{
+  "name": "cyy-backend",
+  "version": "1.0.0",
+  "description": "Backend services for CYY Medication Reminder App",
+  "main": "index.js",
+  "scripts": {
+    "test:connection": "node scripts/test-connection.js",
+    "test:auth": "node scripts/test-auth.js",
+    "test:realtime": "node scripts/test-realtime.js",
+    "verify": "npm run test:connection && npm run test:auth",
+    "deploy:functions": "supabase functions deploy --all",
+    "deploy:db": "supabase db push",
+    "deploy": "npm run deploy:db && npm run deploy:functions"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.2"
+  },
+  "keywords": [
+    "supabase",
+    "backend",
+    "medication",
+    "reminder"
+  ],
+  "author": "CYY Team",
+  "license": "MIT"
+}

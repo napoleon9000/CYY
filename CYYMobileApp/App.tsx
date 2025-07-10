@@ -8,6 +8,8 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 
 // Initialize notification system
 import './src/utils/notifications';
+// Initialize URL polyfill for Supabase
+import 'react-native-url-polyfill/auto';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -15,6 +17,8 @@ import AddMedicationScreen from './src/screens/AddMedicationScreen';
 import TrackScreen from './src/screens/TrackScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import MedicationDetailsScreen from './src/screens/MedicationDetailsScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import FriendsScreen from './src/screens/FriendsScreen';
 
 // Constants
 import { TAB_COLORS } from './src/constants/colors';
@@ -36,6 +40,7 @@ const TabNavigator = () => {
             case 'Home': return TAB_COLORS.HOME;
             case 'Add': return TAB_COLORS.ADD;
             case 'Track': return TAB_COLORS.TRACK;
+            case 'Friends': return TAB_COLORS.HOME;
             case 'Settings': return TAB_COLORS.SETTINGS;
             default: return TAB_COLORS.ACTIVE;
           }
@@ -73,6 +78,16 @@ const TabNavigator = () => {
         }}
       />
       <Tab.Screen 
+        name="Friends" 
+        component={FriendsScreen}
+        options={{
+          title: 'Friends',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="people" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen 
         name="Settings" 
         component={SettingsScreen}
         options={{
@@ -92,6 +107,7 @@ const App = () => {
       <StatusBar barStyle="light-content" backgroundColor={TAB_COLORS.ADD} />
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="MainTabs" component={TabNavigator} />
           <Stack.Screen 
             name="AddMedication" 

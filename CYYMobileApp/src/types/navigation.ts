@@ -13,6 +13,14 @@ export type RootStackParamList = {
   AddMedication: { medication?: Medication };
   MedicationDetails: { medicationId: string };
   Camera: { medicationId: string };
+  Login: undefined;
+  Friends: undefined;
+  AddFriend: undefined;
+  FriendMedicationDetail: {
+    friendId: string;
+    medicationId: string;
+    friendName: string;
+  };
 };
 
 /**
@@ -22,6 +30,7 @@ export type BottomTabParamList = {
   Home: undefined;
   Add: undefined;
   Track: undefined;
+  Friends: undefined;
   Settings: undefined;
 };
 
@@ -36,7 +45,11 @@ export const ROUTE_NAMES = {
   HOME: 'Home',
   ADD: 'Add',
   TRACK: 'Track',
+  FRIENDS: 'Friends',
   SETTINGS: 'Settings',
+  LOGIN: 'Login',
+  ADD_FRIEND: 'AddFriend',
+  FRIEND_MEDICATION_DETAIL: 'FriendMedicationDetail',
 } as const;
 
 /**
@@ -46,5 +59,6 @@ export const TAB_ICONS = {
   HOME: 'house',
   ADD: 'plus.circle',
   TRACK: 'checkmark.circle',
+  FRIENDS: 'people',
   SETTINGS: 'gear',
 } as const;
