@@ -37,6 +37,11 @@
 	<string></string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to photo library to select photos of your medications for confirmation.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>background-processing</string>
+	</array>
 	<key>UIAppFonts</key>
 	<array>
 		<string>MaterialIcons.ttf</string>

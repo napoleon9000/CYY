@@ -80,6 +80,7 @@ PushNotification.configure({
     alert: true,
     badge: true,
     sound: true,
+    critical: true, // Enable critical notifications
   },
 
   popInitialNotification: true,
@@ -185,6 +186,21 @@ if (Platform.OS === 'ios') {
       vibrate: true,
     },
     (created) => console.log(`Android channel created: ${created}`)
+  );
+
+  // Create critical notification channel for Android
+  PushNotification.createChannel(
+    {
+      channelId: 'critical-medication-reminders',
+      channelName: 'Critical Medication Reminders',
+      channelDescription: 'Critical medication reminders that bypass Do Not Disturb',
+      playSound: true,
+      soundName: 'default',
+      importance: 5, // MAX importance for critical notifications
+      vibrate: true,
+      bypassDnd: true, // Bypass Do Not Disturb
+    },
+    (created) => console.log(`Android critical channel created: ${created}`)
   );
 }
 
@@ -351,7 +367,8 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
 
   if (Platform.OS === 'ios') {
     return new Promise((resolve) => {
-      PushNotification.requestPermissions().then((permissions) => {
+      // Request permissions including critical notifications
+      PushNotification.requestPermissions(['alert', 'badge', 'sound', 'critical']).then((permissions) => {
         flipperLog.notification('iOS_PERMISSION_REQUEST_RESULT', permissions);
         console.log('iOS permission request result:', permissions);
         resolve(permissions.alert || false);
@@ -367,7 +384,7 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
         PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
         {
           title: 'Notification Permission',
-          message: 'CYY needs notification permissions to remind you about your medications.',
+          message: 'CYY needs notification permissions to remind you about your medications. Critical notifications will bypass Do Not Disturb mode.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'OK',
@@ -407,16 +424,19 @@ export const scheduleNotification = (medication: Medication, notificationTime: D
     if (medication.criticalNotification) {
       notificationConfig.critical = true;
       notificationConfig.criticalSoundName = 'default';
+      notificationConfig.interruptionLevel = 'critical'; // iOS 15+ critical notifications
     }
   } else {
     // Android specific configuration
-    notificationConfig.channelId = 'medication-reminders';
+    const channelId = medication.criticalNotification ? 'critical-medication-reminders' : 'medication-reminders';
+    notificationConfig.channelId = channelId;
     notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
     // Critical notifications use high priority and override DND
     if (medication.criticalNotification) {
       notificationConfig.priority = 'high';
       notificationConfig.importance = 'high';
-      notificationConfig.fullScreenIntent = true;
+      notificationConfig.allowWhileIdle = true;
+      notificationConfig.wakeLockTimeout = 10000; // 10 seconds wake lock
     }
   }
 
@@ -542,12 +562,28 @@ export const sendDelayedTestNotification = async (medication: Medication, delayS
         ...baseConfig,
         category: 'MEDICATION_ACTIONS',
       };
+      
+      // Add critical notification settings for iOS
+      if (medication.criticalNotification) {
+        notificationConfig.critical = true;
+        notificationConfig.criticalSoundName = 'default';
+        notificationConfig.interruptionLevel = 'critical';
+      }
     } else {
+      const channelId = medication.criticalNotification ? 'critical-medication-reminders' : 'medication-reminders';
       notificationConfig = {
         ...baseConfig,
-        channelId: 'medication-reminders',
+        channelId: channelId,
         actions: ['TAKEN', 'SKIP', 'TAKEN_PHOTO'],
       };
+      
+      // Add critical notification settings for Android
+      if (medication.criticalNotification) {
+        notificationConfig.priority = 'max';
+        notificationConfig.importance = 'max';
+        notificationConfig.allowWhileIdle = true;
+        notificationConfig.wakeLockTimeout = 10000;
+      }
     }
 
     // Schedule notification
@@ -557,6 +593,81 @@ export const sendDelayedTestNotification = async (medication: Medication, delayS
     
   } catch (error) {
     console.error('Failed to send test notification:', error);
+    throw error;
+  }
+};
+
+// Test critical notification specifically
+export const sendCriticalTestNotification = async (medication: Medication, delaySeconds: number = 5) => {
+  const notificationId = `critical_test_${medication.id}_${Date.now()}`;
+  
+  try {
+    // Check notification permissions first
+    const hasPermission = await checkNotificationPermission();
+    
+    if (!hasPermission) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        throw new Error('Notification permission denied. Please enable notifications in Settings.');
+      }
+    }
+
+    const scheduledTime = new Date(Date.now() + delaySeconds * 1000);
+    
+    const baseConfig = {
+      id: notificationId,
+      title: `🚨 CRITICAL: ${medication.name}`,
+      message: `URGENT: Take your ${medication.dosage} now! (Critical notification test)`,
+      date: scheduledTime,
+      playSound: true,
+      soundName: 'default',
+      vibrate: true,
+      userInfo: {
+        medicationId: medication.id,
+        notificationId,
+        isTest: true,
+        isCritical: true,
+      },
+    };
+
+    let notificationConfig: any;
+
+    // Platform specific configuration for critical notifications
+    if (Platform.OS === 'ios') {
+      notificationConfig = {
+        ...baseConfig,
+        category: 'MEDICATION_ACTIONS',
+        critical: true,
+        criticalSoundName: 'default',
+        interruptionLevel: 'critical',
+      };
+    } else {
+      notificationConfig = {
+        ...baseConfig,
+        channelId: 'critical-medication-reminders',
+        actions: ['TAKEN', 'SKIP', 'TAKEN_PHOTO'],
+        priority: 'max',
+        importance: 'max',
+        allowWhileIdle: true,
+        wakeLockTimeout: 10000,
+      };
+    }
+
+    // Schedule notification
+    PushNotification.localNotificationSchedule(notificationConfig);
+    
+    console.log('Critical test notification scheduled successfully');
+    
+    return {
+      success: true,
+      notificationId,
+      scheduledTime: scheduledTime.toISOString(),
+      platform: Platform.OS,
+      isCritical: true
+    };
+    
+  } catch (error) {
+    console.error('Failed to send critical test notification:', error);
     throw error;
   }
 };
@@ -591,6 +702,41 @@ export const debugNotificationStatus = async () => {
     };
   } catch (error) {
     console.error('Failed to check notification status:', error);
+    throw error;
+  }
+};
+
+// Check critical notification support
+export const checkCriticalNotificationSupport = async () => {
+  try {
+    const hasPermission = await checkNotificationPermission();
+    
+    if (Platform.OS === 'ios') {
+      // Check iOS critical notification support
+      PushNotification.checkPermissions((permissions) => {
+        console.log('iOS notification permissions:', permissions);
+        console.log('Critical notifications supported:', permissions.critical || false);
+      });
+      
+      return {
+        platform: 'iOS',
+        hasPermission,
+        criticalSupported: true, // iOS 15+ supports critical notifications
+        requiresEntitlement: true,
+        note: 'Critical notifications require special entitlements and Apple approval'
+      };
+    } else {
+      // Check Android critical notification support
+      return {
+        platform: 'Android',
+        hasPermission,
+        criticalSupported: true,
+        requiresEntitlement: false,
+        note: 'Critical notifications use high priority channels with bypassDnd'
+      };
+    }
+  } catch (error) {
+    console.error('Failed to check critical notification support:', error);
     throw error;
   }
 };
@@ -641,16 +787,19 @@ export const scheduleRetryNotification = async (medication: Medication, original
     if (medication.criticalNotification) {
       notificationConfig.critical = true;
       notificationConfig.criticalSoundName = 'default';
+      notificationConfig.interruptionLevel = 'critical'; // iOS 15+ critical notifications
     }
   } else {
     // Android specific configuration
-    notificationConfig.channelId = 'medication-reminders';
+    const channelId = medication.criticalNotification ? 'critical-medication-reminders' : 'medication-reminders';
+    notificationConfig.channelId = channelId;
     notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
     // Critical notifications use high priority and override DND
     if (medication.criticalNotification) {
-      notificationConfig.priority = 'high';
-      notificationConfig.importance = 'high';
-      notificationConfig.fullScreenIntent = true;
+      notificationConfig.priority = 'max';
+      notificationConfig.importance = 'max';
+      notificationConfig.allowWhileIdle = true;
+      notificationConfig.wakeLockTimeout = 10000; // 10 seconds wake lock
     }
   }
 
@@ -743,16 +892,19 @@ export const scheduleNotificationWithRetry = async (medication: Medication, noti
     if (medication.criticalNotification) {
       notificationConfig.critical = true;
       notificationConfig.criticalSoundName = 'default';
+      notificationConfig.interruptionLevel = 'critical'; // iOS 15+ critical notifications
     }
   } else {
     // Android specific configuration
-    notificationConfig.channelId = 'medication-reminders';
+    const channelId = medication.criticalNotification ? 'critical-medication-reminders' : 'medication-reminders';
+    notificationConfig.channelId = channelId;
     notificationConfig.actions = ['TAKEN', 'SKIP', 'TAKEN_PHOTO'];
     // Critical notifications use high priority and override DND
     if (medication.criticalNotification) {
-      notificationConfig.priority = 'high';
-      notificationConfig.importance = 'high';
-      notificationConfig.fullScreenIntent = true;
+      notificationConfig.priority = 'max';
+      notificationConfig.importance = 'max';
+      notificationConfig.allowWhileIdle = true;
+      notificationConfig.wakeLockTimeout = 10000; // 10 seconds wake lock
     }
   }
 
